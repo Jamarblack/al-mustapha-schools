@@ -23,7 +23,7 @@ const Header = () => {
             <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-primary flex items-center justify-center shadow-soft group-hover:shadow-gold transition-shadow duration-300">
               <GraduationCap className="w-5 h-5 md:w-6 md:h-6 text-gold" />
             </div>
-            <div className="hidden sm:block">
+            <div className="block">
               <h1 className="font-display text-lg md:text-xl font-bold text-primary leading-tight">
                 Al-Mustapha
               </h1>

@@ -40,7 +40,7 @@ const ReportCard = ({ variant, data }: ReportCardProps) => {
                   : "Primary Section"}
               </p>
               <p className="text-primary-foreground/60 text-xs md:text-sm">
-                123 Education Avenue, Kaduna, Nigeria
+                Al-Mustapha, Ogidi, Ilorin, Nigeria
               </p>
             </div>
           </div>

@@ -7,12 +7,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { GraduationCap, KeyRound, User, Mail, Lock, ArrowRight } from "lucide-react";
+import { GraduationCap, KeyRound, User, Mail, Lock, ArrowRight, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/lib/supabase"; // Supabase Connected
 
 const Login = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  
+  // State variables
+  const [loading, setLoading] = useState(false);
   const [staffEmail, setStaffEmail] = useState("");
   const [staffPassword, setStaffPassword] = useState("");
   const [parentAdmissionNo, setParentAdmissionNo] = useState("");
@@ -31,15 +35,55 @@ const Login = () => {
     }
   };
 
-  const handleParentLogin = (e: React.FormEvent) => {
+  const handleParentLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (parentAdmissionNo && parentPin) {
+    
+    // Basic Validation
+    if (!parentAdmissionNo || !parentPin) {
+      toast({
+        variant: "destructive",
+        title: "Missing Information",
+        description: "Please enter both Admission Number and PIN.",
+      });
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // 1. Query Supabase for the student
+      const { data, error } = await supabase
+        .from("students")
+        .select("*")
+        .eq("admission_number", parentAdmissionNo) // Check Admission No
+        .eq("pin_code", parentPin)                 // Check PIN
+        .single();                                 // Expecting exactly one student
+
+      // 2. Handle Errors (Wrong PIN or Student not found)
+      if (error || !data) {
+        throw new Error("Invalid Admission Number or PIN");
+      }
+
+      // 3. Success! Save student to LocalStorage
+      localStorage.setItem("studentData", JSON.stringify(data));
+
       toast({
         title: "Login Successful",
-        description: "Fetching student results...",
+        description: `Welcome back, ${data.full_name}!`,
       });
-      // For demo, navigate to result view
+
+      // 4. Redirect to the Result Portal
       navigate("/portal/result");
+
+    } catch (error: any) {
+      console.error("Login Error:", error);
+      toast({
+        variant: "destructive",
+        title: "Login Failed",
+        description: error.message || "Could not verify credentials.",
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -162,7 +206,7 @@ const Login = () => {
                         <Input
                           id="admission-no"
                           type="text"
-                          placeholder="e.g., SEC/2024/123"
+                          placeholder="e.g., FUT/PRI/001"
                           className="pl-10"
                           value={parentAdmissionNo}
                           onChange={(e) => setParentAdmissionNo(e.target.value)}
@@ -194,9 +238,20 @@ const Login = () => {
                       </p>
                     </div>
 
-                    <Button type="submit" className="w-full bg-gold text-primary hover:bg-gold-dark">
-                      Check Result
-                      <ArrowRight className="w-4 h-4 ml-2" />
+                    <Button 
+                      type="submit" 
+                      className="w-full bg-gold text-primary hover:bg-gold-dark"
+                      disabled={loading}
+                    >
+                      {loading ? (
+                        <>
+                           <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Verifying...
+                        </>
+                      ) : (
+                        <>
+                           Check Result <ArrowRight className="w-4 h-4 ml-2" />
+                        </>
+                      )}
                     </Button>
                   </form>
                 </TabsContent>

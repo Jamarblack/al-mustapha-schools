@@ -19,7 +19,7 @@ const HeroSection = () => {
             {/* Badge */}
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gold/20 text-gold text-sm font-medium mb-6 animate-fade-in">
               <GraduationCap className="w-4 h-4" />
-              <span>Established 1985</span>
+              <span>Established 2014</span>
             </div>
 
             {/* Main Heading */}
