@@ -68,9 +68,9 @@ const HeroSection = () => {
             {/* Quick Stats */}
             <div className="grid grid-cols-3 gap-6 mt-12 animate-slide-up" style={{ animationDelay: "0.4s" }}>
               {[
-                { icon: Users, value: "2,500+", label: "Students" },
-                { icon: BookOpen, value: "150+", label: "Teachers" },
-                { icon: GraduationCap, value: "40+", label: "Years" },
+                { icon: Users, value: "2,50+", label: "Students" },
+                { icon: BookOpen, value: "15+", label: "Teachers" },
+                { icon: GraduationCap, value: "10+", label: "Years" },
               ].map((stat, idx) => (
                 <div key={idx} className="text-center lg:text-left">
                   <stat.icon className="w-6 h-6 text-gold mx-auto lg:mx-0 mb-2" />
