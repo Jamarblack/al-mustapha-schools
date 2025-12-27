@@ -40,13 +40,13 @@ const StatsSection = () => {
 
       <div className="container mx-auto px-4 relative z-10">
         {/* Stats Row */}
-        <div className="grid md:grid-cols-3 gap-8 lg:gap-12 mb-16 stagger-children">
+        <div className="grid md:grid-cols-1 gap-8 lg:gap-12 mb-16 stagger-children">
           {stats.map((stat, idx) => (
             <div
               key={idx}
-              className="text-center p-8 rounded-2xl bg-primary-foreground/5 border border-primary-foreground/10 hover:bg-primary-foreground/10 transition-all duration-300"
+              className="text-center p-8 rounded-full bg-primary-foreground/5 border border-primary-foreground/10 hover:bg-primary-foreground/10 transition-all duration-300"
             >
-              <div className="w-16 h-16 rounded-full bg-gold/20 flex items-center justify-center mx-auto mb-6">
+              <div className="w-10 h-10 rounded-full bg-gold/20 flex items-center justify-center mx-auto mb-6">
                 <stat.icon className="w-8 h-8 text-gold" />
               </div>
               <p className="font-display text-4xl md:text-5xl font-bold text-gold mb-2">

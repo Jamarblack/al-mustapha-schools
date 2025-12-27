@@ -40,7 +40,7 @@ const ReportCard = ({ variant, data }: ReportCardProps) => {
                   : "Primary Section"}
               </p>
               <p className="text-primary-foreground/60 text-xs md:text-sm">
-                Al-Mustapha, Ogidi, Ilorin, Nigeria
+                NO 1, AJAO MUSTAPHA STREET, IDI EMI OGIDI AREA., ILORIN, KWARA STATE
               </p>
             </div>
           </div>

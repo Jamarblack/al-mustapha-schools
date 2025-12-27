@@ -76,7 +76,7 @@ const Footer = () => {
               <li className="flex items-start gap-3">
                 <MapPin className="w-5 h-5 text-gold shrink-0 mt-0.5" />
                 <span className="text-sm text-primary-foreground/70">
-                  Al-Mustapha, Ogidi, Ilorin, Nigeria
+                  NO 1, AJAO MUSTAPHA STREET, IDI EMI OGIDI AREA., ILORIN, KWARA STATE
                 </span>
               </li>
               <li className="flex items-center gap-3">

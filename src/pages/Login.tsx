@@ -23,15 +23,56 @@ const Login = () => {
   const [parentPin, setParentPin] = useState("");
   const [selectedSection, setSelectedSection] = useState("");
 
-  const handleStaffLogin = (e: React.FormEvent) => {
+  const handleStaffLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (staffEmail && staffPassword) {
+    
+    if (!staffEmail || !staffPassword) {
+       toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please enter email and password.",
+      });
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // 1. Check the 'staff' table
+      const { data, error } = await supabase
+        .from("staff")
+        .select("*")
+        .eq("email", staffEmail)
+        .eq("password", staffPassword) // checking plain text for this demo
+        .single();
+
+      if (error || !data) {
+        throw new Error("Invalid Email or Password");
+      }
+
+      // 2. Save session
+      localStorage.setItem("staffData", JSON.stringify(data));
+
       toast({
         title: "Login Successful",
-        description: "Welcome back! Redirecting to dashboard...",
+        description: `Welcome, ${data.role === 'admin' ? 'Principal' : 'Teacher'} ${data.full_name}`,
       });
-      // For demo, navigate to result entry
-      navigate("/teacher/results");
+
+      // 3. Smart Redirect based on Role
+      if (data.role === 'admin') {
+        navigate("/admin/dashboard");
+      } else {
+        navigate("/teacher/results");
+      }
+
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Login Failed",
+        description: "Invalid credentials. Please try again.",
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -121,12 +162,12 @@ const Login = () => {
               <Tabs defaultValue="staff" className="w-full">
                 <TabsList className="grid w-full grid-cols-2 mb-6">
                   <TabsTrigger value="staff" className="flex items-center gap-2">
-                    <User className="w-4 h-4" />
+                   
                     Staff Login
                   </TabsTrigger>
                   <TabsTrigger value="parent" className="flex items-center gap-2">
-                    <KeyRound className="w-4 h-4" />
-                    Check Result
+                   
+                    Student Portal
                   </TabsTrigger>
                 </TabsList>
 
@@ -249,7 +290,7 @@ const Login = () => {
                         </>
                       ) : (
                         <>
-                           Check Result <ArrowRight className="w-4 h-4 ml-2" />
+                           Login as Student <ArrowRight className="w-4 h-4 ml-2" />
                         </>
                       )}
                     </Button>
@@ -260,8 +301,8 @@ const Login = () => {
           </Card>
 
           {/* Back Link */}
-          <p className="text-center mt-6 text-sm text-muted-foreground">
-            <Link to="/" className="text-gold hover:underline">
+          <p className="text-center mt-6 hover:border-2 rounded-md  hover:bg-gold-dark hover:slide-in-from-top-2 hover:animate-bounce  border-4 text-sm text-muted-foreground">
+            <Link to="/" className="t hover:underline ">
               ← Back to Homepage
             </Link>
           </p>

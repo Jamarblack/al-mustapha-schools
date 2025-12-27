@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { ArrowRight, BookOpen, GraduationCap, Users } from "lucide-react";
+import { ArrowRight, BookOpen, GraduationCap, Users, } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const HeroSection = () => {
@@ -52,7 +52,7 @@ const HeroSection = () => {
 
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start animate-slide-up" style={{ animationDelay: "0.3s" }}>
-              <Button asChild variant="hero">
+              <Button className="hover:bg-primary hover:text-gold-dark" asChild variant="hero">
                 <Link to="/login">
                   Access Portal
                   <ArrowRight className="w-5 h-5 ml-2" />
@@ -66,9 +66,9 @@ const HeroSection = () => {
             </div>
 
             {/* Quick Stats */}
-            <div className="grid grid-cols-3 gap-6 mt-12 animate-slide-up" style={{ animationDelay: "0.4s" }}>
+            {/* <div className="grid grid-cols-3 gap-6 mt-12 animate-slide-up" style={{ animationDelay: "0.4s" }}>
               {[
-                { icon: Users, value: "2,50+", label: "Students" },
+                { icon: Users, value: "250+", label: "Students" },
                 { icon: BookOpen, value: "15+", label: "Teachers" },
                 { icon: GraduationCap, value: "10+", label: "Years" },
               ].map((stat, idx) => (
@@ -80,7 +80,7 @@ const HeroSection = () => {
                   <p className="text-sm text-primary-foreground/60">{stat.label}</p>
                 </div>
               ))}
-            </div>
+            </div> */}
           </div>
 
           {/* Visual Element */}
@@ -126,11 +126,11 @@ const HeroSection = () => {
       </div>
 
       {/* Scroll Indicator */}
-      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce">
+      {/* <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce">
         <div className="w-6 h-10 rounded-full border-2 border-primary-foreground/30 flex items-start justify-center p-2">
           <div className="w-1 h-2 rounded-full bg-gold" />
         </div>
-      </div>
+      </div> */}
     </section>
   );
 };
