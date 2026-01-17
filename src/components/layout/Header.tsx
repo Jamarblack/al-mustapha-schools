@@ -2,6 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { GraduationCap, Menu, X } from "lucide-react";
 import { useState } from "react";
+import logo from "/Almustapha.png";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -21,7 +22,7 @@ const Header = () => {
           {/* Logo */}
           <Link to="/" className="flex items-center gap-3 group">
             <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-primary flex items-center justify-center shadow-soft group-hover:shadow-gold transition-shadow duration-300">
-              <GraduationCap className="w-5 h-5 md:w-6 md:h-6 text-gold" />
+              <img src={logo} className="w-8 h-8 rounded-full" alt="Al-Mustapha Logo" />
             </div>
             <div className="block">
               <h1 className="font-display text-lg md:text-xl font-bold text-primary leading-tight">

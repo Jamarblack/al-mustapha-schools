@@ -90,7 +90,7 @@ const AcademicsSection = () => {
                   ))}
                 </ul>
 
-                <Button variant="ghost" className="group/btn p-0 h-auto text-primary hover:text-gold">
+                <Button variant="ghost" className="group/btn p-2 h-auto text-primary ">
                   Learn More
                   <ArrowRight className="w-4 h-4 ml-2 group-hover/btn:translate-x-1 transition-transform" />
                 </Button>

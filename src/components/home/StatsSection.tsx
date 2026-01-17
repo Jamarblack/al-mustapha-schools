@@ -40,7 +40,7 @@ const StatsSection = () => {
 
       <div className="container mx-auto px-4 relative z-10">
         {/* Stats Row */}
-        <div className="grid md:grid-cols-1 gap-8 lg:gap-12 mb-16 stagger-children">
+        {/* <div className="grid md:grid-cols-1 gap-8 lg:gap-12 mb-16 stagger-children">
           {stats.map((stat, idx) => (
             <div
               key={idx}
@@ -60,7 +60,7 @@ const StatsSection = () => {
               </p>
             </div>
           ))}
-        </div>
+        </div> */}
 
         {/* Divider */}
         <div className="flex items-center gap-4 my-12">

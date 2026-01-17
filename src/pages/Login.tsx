@@ -2,310 +2,235 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Header from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { GraduationCap, KeyRound, User, Mail, Lock, ArrowRight, Loader2 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/lib/supabase"; // Supabase Connected
+import { GraduationCap, KeyRound, User, Mail, Lock, Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast"; //
+import { supabase } from "@/lib/supabase";
+import logo from "/Almustapha.png";
 
 const Login = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   
-  // State variables
   const [loading, setLoading] = useState(false);
+  
+  // Staff State
   const [staffEmail, setStaffEmail] = useState("");
   const [staffPassword, setStaffPassword] = useState("");
-  const [parentAdmissionNo, setParentAdmissionNo] = useState("");
-  const [parentPin, setParentPin] = useState("");
-  const [selectedSection, setSelectedSection] = useState("");
+  
+  // Student State
+  const [admissionNo, setAdmissionNo] = useState("");
+  const [pinCode, setPinCode] = useState("");
+  const [section, setSection] = useState("");
 
+  // --- 1. STAFF LOGIN LOGIC (Proprietor, Principal, Teachers) ---
   const handleStaffLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!staffEmail || !staffPassword) {
-       toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Please enter email and password.",
-      });
+      toast({ variant: "destructive", title: "Error", description: "Please enter email and password." });
       return;
     }
 
     setLoading(true);
-
     try {
-      // 1. Check the 'staff' table
       const { data, error } = await supabase
         .from("staff")
         .select("*")
         .eq("email", staffEmail)
-        .eq("password", staffPassword) // checking plain text for this demo
+        .eq("password", staffPassword) // In a real app, use Supabase Auth for security!
         .single();
 
-      if (error || !data) {
-        throw new Error("Invalid Email or Password");
-      }
+      if (error || !data) throw new Error("Invalid Credentials");
 
-      // 2. Save session
+      // Save Session
       localStorage.setItem("staffData", JSON.stringify(data));
+      localStorage.setItem("userRole", data.role); 
 
-      toast({
-        title: "Login Successful",
-        description: `Welcome, ${data.role === 'admin' ? 'Principal' : 'Teacher'} ${data.full_name}`,
-      });
+      toast({ title: "Welcome back!", description: `Logged in as ${data.role.toUpperCase()}` });
 
-      // 3. Smart Redirect based on Role
-      if (data.role === 'admin') {
-        navigate("/admin/dashboard");
+      // Smart Redirect based on Role
+      if (data.role === 'proprietor') {
+        navigate("/admin/proprietor");
+      } else if (data.role === 'principal') {
+        navigate("/admin/principal");
+      } else if (data.role === 'head_teacher') {
+        navigate("/admin/head-teacher");
       } else {
-        navigate("/teacher/results");
+        navigate("/teacher/dashboard");
       }
 
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Login Failed",
-        description: "Invalid credentials. Please try again.",
-      });
+    } catch (err: any) {
+      console.error(err);
+      toast({ variant: "destructive", title: "Login Failed", description: "Invalid email or password." });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleParentLogin = async (e: React.FormEvent) => {
+  // --- 2. STUDENT LOGIN LOGIC ---
+  const handleStudentLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Basic Validation
-    if (!parentAdmissionNo || !parentPin) {
-      toast({
-        variant: "destructive",
-        title: "Missing Information",
-        description: "Please enter both Admission Number and PIN.",
-      });
+    if (!admissionNo || !pinCode) {
+      toast({ variant: "destructive", title: "Error", description: "Enter Admission Number and PIN." });
       return;
     }
 
     setLoading(true);
-
     try {
-      // 1. Query Supabase for the student
-      const { data, error } = await supabase
+      // Find student matching Admission No AND Pin
+      // We also check the 'section' if provided, though Admission No is usually unique enough
+      let query = supabase
         .from("students")
-        .select("*")
-        .eq("admission_number", parentAdmissionNo) // Check Admission No
-        .eq("pin_code", parentPin)                 // Check PIN
-        .single();                                 // Expecting exactly one student
+        .select("*, class:classes(name)")
+        .eq("admission_number", admissionNo) // Format: AMS/2025/001
+        .eq("pin_code", pinCode)
+        .single();
 
-      // 2. Handle Errors (Wrong PIN or Student not found)
-      if (error || !data) {
-        throw new Error("Invalid Admission Number or PIN");
+      const { data, error } = await query;
+
+      if (error || !data) throw new Error("Invalid Admission Number or PIN");
+
+      // Check Active Status (Fee Management)
+      if (data.is_active === false) {
+        throw new Error("Access Restricted. Please contact the Bursar.");
       }
 
-      // 3. Success! Save student to LocalStorage
+      // Save Session
       localStorage.setItem("studentData", JSON.stringify(data));
+      localStorage.setItem("userRole", "student");
 
-      toast({
-        title: "Login Successful",
-        description: `Welcome back, ${data.full_name}!`,
-      });
+      toast({ title: "Login Successful", description: `Welcome, ${data.full_name}` });
+      navigate("/student/dashboard");
 
-      // 4. Redirect to the Result Portal
-      navigate("/portal/result");
-
-    } catch (error: any) {
-      console.error("Login Error:", error);
-      toast({
-        variant: "destructive",
-        title: "Login Failed",
-        description: error.message || "Could not verify credentials.",
-      });
+    } catch (err: any) {
+      console.error(err);
+      toast({ variant: "destructive", title: "Login Failed", description: err.message || "Invalid credentials" });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       <Header />
       
-      <main className="pt-24 pb-16 px-4">
-        <div className="container mx-auto max-w-md">
-          {/* Logo */}
-          <div className="text-center mb-8 animate-fade-in">
-            <Link to="/" className="inline-flex flex-col items-center">
-              <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center shadow-elevated mb-3">
-                <GraduationCap className="w-8 h-8 text-gold" />
-              </div>
-              <h1 className="font-display text-2xl font-bold text-foreground">
-                Al-Mustapha Portal
-              </h1>
-              <p className="text-sm text-muted-foreground mt-1">
-                Access your school portal
-              </p>
-            </Link>
+      <main className="flex-1 flex items-center justify-center p-4 pt-24">
+        <div className="w-full max-w-md space-y-8 animate-fade-in">
+          
+          {/* Logo & Header */}
+          <div className="text-center space-y-2">
+            <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center mx-auto shadow-gold">
+              <img src={logo} className="w-14 h-14 rounded-full" alt="Al-Mustapha Logo" />
+            </div>
+            <h1 className="text-3xl font-display font-bold text-foreground">Al-Mustapha Portal</h1>
+            <p className="text-muted-foreground">Secure Access Gateway</p>
           </div>
 
-          {/* Login Card */}
-          <Card className="border-border shadow-elevated animate-slide-up">
-            <CardHeader className="text-center pb-4">
-              <CardTitle className="font-display text-xl">Welcome Back</CardTitle>
-              <CardDescription>
-                Login to access the school portal
-              </CardDescription>
+          <Card className="border-border shadow-elevated">
+            <CardHeader className="pb-4 border-b">
+              <CardTitle className="text-center text-xl">Choose Login Type</CardTitle>
             </CardHeader>
-            
-            <CardContent>
+            <CardContent className="pt-6">
               <Tabs defaultValue="staff" className="w-full">
                 <TabsList className="grid w-full grid-cols-2 mb-6">
-                  <TabsTrigger value="staff" className="flex items-center gap-2">
-                   
-                    Staff Login
-                  </TabsTrigger>
-                  <TabsTrigger value="parent" className="flex items-center gap-2">
-                   
-                    Student Portal
-                  </TabsTrigger>
+                  <TabsTrigger value="staff">Staff / Admin</TabsTrigger>
+                  <TabsTrigger value="student">Student / Parent</TabsTrigger>
                 </TabsList>
 
-                {/* Staff Login */}
+                {/* --- STAFF FORM --- */}
                 <TabsContent value="staff">
                   <form onSubmit={handleStaffLogin} className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="staff-email">Email Address</Label>
+                      <Label>Email Address</Label>
                       <div className="relative">
-                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                        <Input
-                          id="staff-email"
-                          type="email"
-                          placeholder="teacher@almustapha.edu.ng"
-                          className="pl-10"
+                        <Mail className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+                        <Input 
+                          placeholder="admin@almustapha.edu.ng" 
+                          className="pl-9"
                           value={staffEmail}
                           onChange={(e) => setStaffEmail(e.target.value)}
-                          required
                         />
                       </div>
                     </div>
-
                     <div className="space-y-2">
-                      <Label htmlFor="staff-password">Password</Label>
+                      <Label>Password</Label>
                       <div className="relative">
-                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                        <Input
-                          id="staff-password"
-                          type="password"
-                          placeholder="Enter your password"
-                          className="pl-10"
+                        <Lock className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+                        <Input 
+                          type="password" 
+                          placeholder="••••••" 
+                          className="pl-9"
                           value={staffPassword}
                           onChange={(e) => setStaffPassword(e.target.value)}
-                          required
                         />
                       </div>
                     </div>
-
-                    <div className="flex items-center justify-between text-sm">
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" className="rounded border-input" />
-                        <span className="text-muted-foreground">Remember me</span>
-                      </label>
-                      <a href="#" className="text-gold hover:underline">
-                        Forgot password?
-                      </a>
-                    </div>
-
-                    <Button type="submit" className="w-full bg-gold text-primary hover:bg-gold-dark">
-                      Login as Staff
-                      <ArrowRight className="w-4 h-4 ml-2" />
+                    <Button type="submit" className="w-full bg-primary hover:bg-primary/90" disabled={loading}>
+                      {loading ? <Loader2 className="animate-spin" /> : "Login to Dashboard"}
                     </Button>
                   </form>
                 </TabsContent>
 
-                {/* Parent/Student Login */}
-                <TabsContent value="parent">
-                  <form onSubmit={handleParentLogin} className="space-y-4">
+                {/* --- STUDENT FORM --- */}
+                <TabsContent value="student">
+                  <form onSubmit={handleStudentLogin} className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="section">Select Section</Label>
-                      <Select value={selectedSection} onValueChange={setSelectedSection}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Choose section" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-card border-border z-50">
-                          <SelectItem value="nursery">Nursery Section</SelectItem>
+                      <Label>Select Section</Label>
+                      <Select value={section} onValueChange={setSection}>
+                        <SelectTrigger><SelectValue placeholder="Select Section" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="nursery">Nursery (KG & Pre-Nursery)</SelectItem>
                           <SelectItem value="primary">Primary Section</SelectItem>
-                          <SelectItem value="secondary">Secondary (College)</SelectItem>
+                          <SelectItem value="secondary">Secondary (JSS/SSS)</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="admission-no">Admission Number</Label>
+                      <Label>Admission Number</Label>
                       <div className="relative">
-                        <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                        <Input
-                          id="admission-no"
-                          type="text"
-                          placeholder="e.g., FUT/PRI/001"
-                          className="pl-10"
-                          value={parentAdmissionNo}
-                          onChange={(e) => setParentAdmissionNo(e.target.value)}
-                          required
+                        <User className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+                        <Input 
+                          placeholder="AMS/2025/001" 
+                          className="pl-9 uppercase"
+                          value={admissionNo}
+                          onChange={(e) => setAdmissionNo(e.target.value)}
                         />
                       </div>
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="pin">Result PIN</Label>
+                      <Label>Access PIN</Label>
                       <div className="relative">
-                        <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                        <Input
-                          id="pin"
-                          type="password"
-                          placeholder="Enter your PIN"
-                          className="pl-10"
-                          value={parentPin}
-                          onChange={(e) => setParentPin(e.target.value)}
-                          required
+                        <KeyRound className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+                        <Input 
+                          type="password" 
+                          placeholder="1234" 
+                          className="pl-9"
+                          value={pinCode}
+                          onChange={(e) => setPinCode(e.target.value)}
                         />
                       </div>
                     </div>
 
-                    <div className="p-3 bg-muted rounded-lg">
-                      <p className="text-xs text-muted-foreground">
-                        <strong>Note:</strong> Result PIN can be obtained from your child's class teacher 
-                        or the school bursar. Each PIN is valid for one term only.
-                      </p>
-                    </div>
-
-                    <Button 
-                      type="submit" 
-                      className="w-full bg-gold text-primary hover:bg-gold-dark"
-                      disabled={loading}
-                    >
-                      {loading ? (
-                        <>
-                           <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Verifying...
-                        </>
-                      ) : (
-                        <>
-                           Login as Student <ArrowRight className="w-4 h-4 ml-2" />
-                        </>
-                      )}
+                    <Button type="submit" className="w-full bg-gold text-primary hover:bg-gold-dark" disabled={loading}>
+                      {loading ? <Loader2 className="animate-spin" /> : "Check Result"}
                     </Button>
                   </form>
                 </TabsContent>
               </Tabs>
             </CardContent>
           </Card>
-
-          {/* Back Link */}
-          <p className="text-center mt-6 hover:border-2 rounded-md  hover:bg-gold-dark hover:slide-in-from-top-2 hover:animate-bounce  border-4 text-sm text-muted-foreground">
-            <Link to="/" className="t hover:underline ">
+          
+          <div className="text-center">
+            <Link to="/" className="text-sm text-muted-foreground hover:text-gold transition-colors">
               ← Back to Homepage
             </Link>
-          </p>
+          </div>
         </div>
       </main>
     </div>
