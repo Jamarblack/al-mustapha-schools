@@ -9,10 +9,14 @@ export default defineConfig(({ mode }) => ({
     host: "::",
     port: 8080,
   },
-  plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
+  plugins: [
+    react(),
+    mode === "development" && componentTagger(),
+  ].filter(Boolean),
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      // FIX: Replace __dirname with process.cwd() or simply standard path resolution
+      "@": path.resolve(process.cwd(), "./src"),
     },
   },
 }));
