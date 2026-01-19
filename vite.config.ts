@@ -15,7 +15,7 @@ export default defineConfig(({ mode }) => ({
   ].filter(Boolean),
   resolve: {
     alias: {
-      // FIX: Replace __dirname with process.cwd() or simply standard path resolution
+      // FIX: Replace __dirname with process.cwd()
       "@": path.resolve(process.cwd(), "./src"),
     },
   },
