@@ -35,7 +35,8 @@ const AdminDashboard = () => {
 
   // Forms
   const [newStaff, setNewStaff] = useState({ name: "", email: "", password: "", role: "", section: "", phone: "" });
-  const [newStudent, setNewStudent] = useState({ name: "", admissionNo: "", classId: "", parentPhone: "" });
+  // Removed admissionNo from state as it is now auto-generated
+  const [newStudent, setNewStudent] = useState({ name: "", classId: "", parentPhone: "" });
   const [myPassport, setMyPassport] = useState<File | null>(null);
 
   useEffect(() => {
@@ -85,24 +86,65 @@ const AdminDashboard = () => {
 
   const handleRegisterStudent = async () => {
     setLoading(true);
-    const pin = Math.floor(1000 + Math.random() * 9000).toString();
-    const selectedClass = classList.find(c => c.id === newStudent.classId);
     
+    // 1. Get Class Details
+    const selectedClass = classList.find(c => c.id === newStudent.classId);
+    if (!selectedClass) {
+        toast({ variant: "destructive", title: "Error", description: "Please select a class first." });
+        setLoading(false);
+        return;
+    }
+
+    // 2. Generate Auto-Admission Number
+    const rand = Math.floor(1000 + Math.random() * 9000); // 4 digit random
+    const currentYear = new Date().getFullYear();
+    let autoAdmissionNo = "";
+
+    // Logic for Admission Number Prefix
+    if (selectedClass.name.toUpperCase().includes('KG')) {
+        autoAdmissionNo = `AMS/${currentYear}/${rand}`;
+    } else if (selectedClass.section === 'nursery') {
+        autoAdmissionNo = `AMS/NUR/${rand}`;
+    } else if (selectedClass.section === 'primary') {
+        autoAdmissionNo = `AMS/PRI/${rand}`;
+    } else if (selectedClass.section === 'secondary') {
+        if (selectedClass.name.toUpperCase().startsWith('JSS')) {
+            autoAdmissionNo = `AMS/JSS/${rand}`;
+        } else {
+            // Assumes SSS or SS
+            autoAdmissionNo = `AMS/SS/${rand}`;
+        }
+    } else {
+        // Fallback
+        autoAdmissionNo = `AMS/${rand}`;
+    }
+
+    // 3. Generate Login PIN
+    const pin = Math.floor(1000 + Math.random() * 9000).toString();
+    
+    // 4. Insert into Database
     const { error } = await supabase.from('students').insert({
       full_name: newStudent.name,
-      admission_number: newStudent.admissionNo,
+      admission_number: autoAdmissionNo, // Auto-filled
       class_id: newStudent.classId,
-      section: selectedClass?.section,
+      section: selectedClass.section,
       pin_code: pin,
       emergency_contact: newStudent.parentPhone,
       is_active: true
     });
+
     setLoading(false);
-    if (error) toast({ variant: "destructive", title: "Error", description: error.message });
-    else { 
-        toast({ title: "Success", description: `Student Added. PIN: ${pin}` }); 
+    
+    if (error) {
+        toast({ variant: "destructive", title: "Error", description: error.message });
+    } else { 
+        // Success Message showing the generated details
+        toast({ 
+            title: "Student Registered!", 
+            description: `Admission No: ${autoAdmissionNo} | PIN: ${pin}` 
+        }); 
         loadAllData();
-        setNewStudent({ name: "", admissionNo: "", classId: "", parentPhone: "" });
+        setNewStudent({ name: "", classId: "", parentPhone: "" });
     }
   };
 
@@ -114,7 +156,6 @@ const AdminDashboard = () => {
     }
   };
 
-  // --- DELETE FUNCTION ---
   const handleDelete = async (table: 'staff' | 'students', id: string) => {
     const { error } = await supabase.from(table).delete().eq('id', id);
     if (error) {
@@ -125,30 +166,35 @@ const AdminDashboard = () => {
     }
   };
 
-  // --- FIXED PASSPORT UPLOAD ---
   const handleProfileUpdate = async () => {
     if (!myPassport) return;
     setLoading(true);
 
     try {
-        // 1. Get correct file extension (jpg, png, etc.)
         const fileExt = myPassport.name.split('.').pop();
-        // 2. Create unique filename
         const fileName = `proprietor_${user.id}_${Date.now()}.${fileExt}`;
 
-        // 3. Upload to Storage
+        // 1. Upload to Supabase Storage
         const { error: uploadError } = await supabase.storage.from('passports').upload(fileName, myPassport);
         if (uploadError) throw uploadError;
 
-        // 4. Get Public URL
+        // 2. Get the Public URL
         const { data } = supabase.storage.from('passports').getPublicUrl(fileName);
         
-        // 5. Save URL to Database
+        // 3. Update the Database
         const { error: dbError } = await supabase.from('staff').update({ passport_url: data.publicUrl }).eq('id', user.id);
         if (dbError) throw dbError;
 
         toast({ title: "Success", description: "Passport Updated" });
-        setUser({ ...user, passport_url: data.publicUrl });
+
+        // 4. PREPARE NEW USER DATA
+        const updatedUser = { ...user, passport_url: data.publicUrl };
+
+        // 5. UPDATE STATE (Shows it now)
+        setUser(updatedUser);
+
+        // 6. CRITICAL: UPDATE LOCAL STORAGE (Keeps it after reload)
+        localStorage.setItem("staffData", JSON.stringify(updatedUser));
         
     } catch (error: any) {
         toast({ variant: "destructive", title: "Upload Failed", description: error.message });
@@ -251,7 +297,7 @@ const AdminDashboard = () => {
                         <CardContent className="space-y-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <Input placeholder="Full Name" value={newStudent.name} onChange={e => setNewStudent({...newStudent, name: e.target.value})} />
-                                <Input placeholder="Admission No (AMS/2026/...)" value={newStudent.admissionNo} onChange={e => setNewStudent({...newStudent, admissionNo: e.target.value})} />
+                                {/* Admission No Input REMOVED - Auto Generated */}
                                 <Select onValueChange={v => setNewStudent({...newStudent, classId: v})}>
                                     <SelectTrigger><SelectValue placeholder="Select Class" /></SelectTrigger>
                                     <SelectContent>
@@ -261,7 +307,7 @@ const AdminDashboard = () => {
                                 <Input placeholder="Parent Phone Number" value={newStudent.parentPhone} onChange={e => setNewStudent({...newStudent, parentPhone: e.target.value})} />
                             </div>
                             <Button onClick={handleRegisterStudent} disabled={loading} className="w-full bg-gold text-slate-900 font-bold hover:bg-yellow-500">
-                                {loading ? <Loader2 className="animate-spin" /> : "Admit Student"}
+                                {loading ? <Loader2 className="animate-spin" /> : "Admit Student & Auto-Generate ID"}
                             </Button>
                         </CardContent>
                     </Card>
