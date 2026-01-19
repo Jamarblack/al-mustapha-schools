@@ -14,7 +14,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import PrincipalDashboard from "./pages/PrincipalDashboard"; 
 import HeadTeacherDashboard from "./pages/HeadTeacherDashboard"; 
 import TeacherDashboard from "./pages/TeacherDashboard";
-import StudentDashboard from "./pages/StudentDashboard";
+import StudentDashboard from "./pages/studentDashboard";
 
 const queryClient = new QueryClient();
 
