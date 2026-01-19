@@ -252,9 +252,17 @@ const AdminDashboard = () => {
           ))}
         </nav>
         <div className="p-4">
-            <Button variant="destructive" className="w-full" onClick={() => navigate('/login')}>
-                <LogOut className="mr-2 h-4 w-4" /> Logout
+            {['logout'].map((view) => (
+            <Button 
+            key={view}
+            variant="destructive" 
+            className="w-full justify-start" 
+            onClick={() => navigate('/login')}
+            >
+                {view === 'logout' && <LogOut className="mr-2 h-4 w-4" />}
+                {isSidebarOpen && view.replace('_', ' ').toUpperCase()}
             </Button>
+            ))}
         </div>
       </aside>
 
