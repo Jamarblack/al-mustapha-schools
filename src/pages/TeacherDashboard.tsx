@@ -1,309 +1,278 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import Header from "@/components/layout/Header";
+import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/lib/supabase";
-import { LogOut, Save, Users, BookOpen, Loader2 } from "lucide-react";
+import { LogOut, Save, FileText, Loader2, CheckCircle2 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-
-interface StudentRow {
-  id: string;
-  name: string;
-  admission_number: string;
-  ca_score: number | string;
-  exam_score: number | string;
-}
 
 const TeacherDashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [teacher, setTeacher] = useState<any>(null);
+  const [user, setUser] = useState<any>(null);
+  
+  // Selection State
+  const [classes, setClasses] = useState<any[]>([]);
+  const [subjects, setSubjects] = useState<any[]>([]);
+  const [selectedClass, setSelectedClass] = useState("");
+  const [selectedSubject, setSelectedSubject] = useState("");
+  const [selectedSession, setSelectedSession] = useState("2025/2026");
+  const [selectedTerm, setSelectedTerm] = useState("1st Term");
 
-  // Filters
-  const [section, setSection] = useState("");
-  const [classId, setClassId] = useState("");
-  const [subjectId, setSubjectId] = useState("");
-  
-  // Data Lists
-  const [classList, setClassList] = useState<any[]>([]);
-  const [subjectList, setSubjectList] = useState<any[]>([]);
-  const [students, setStudents] = useState<StudentRow[]>([]);
-  
+  // Data State
+  const [students, setStudents] = useState<any[]>([]);
+  const [scores, setScores] = useState<Record<string, { ca: string; exam: string }>>({});
   const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
 
-  // 1. Load Teacher Info
+  // Modal State
+  const [selectedStudent, setSelectedStudent] = useState<any>(null);
+  const [reportData, setReportData] = useState({
+    opened: "120", present: "115", absent: "5",
+    formRemark: "A well behaved student.", houseRemark: "Maintains good hygiene.", principalRemark: "Good result, keep it up.",
+    skills: { Handwriting: 5, Fluency: 5, Sports: 4, Drawing: 3, Punctuality: 5, Neatness: 5, Politeness: 5, Honesty: 5, Leadership: 4, Attentiveness: 5 }
+  });
+
   useEffect(() => {
     const data = localStorage.getItem("staffData");
-    if (!data) {
-      navigate("/login");
-      return;
-    }
-    setTeacher(JSON.parse(data));
+    if (!data) { navigate("/login"); return; }
+    setUser(JSON.parse(data));
+    loadMetadata();
   }, []);
 
-  // 2. Fetch Classes when Section Changes
-  useEffect(() => {
-    if (!section) return;
-    const fetchClasses = async () => {
-      const { data } = await supabase.from('classes').select('*').eq('section', section).order('name');
-      if (data) setClassList(data);
-      setSubjectList([]); // Reset subjects
-      setStudents([]);    // Reset students
-    };
-    fetchClasses();
-  }, [section]);
+  const loadMetadata = async () => {
+    const { data: c } = await supabase.from('classes').select('*').order('name');
+    if (c) setClasses(c);
+    const { data: s } = await supabase.from('subjects').select('*').order('name');
+    if (s) setSubjects(s);
+  };
 
-  // 3. Fetch Subjects when Section Changes (Filtered by Department logic if needed)
-  useEffect(() => {
-    if (!section) return;
-    const fetchSubjects = async () => {
-      // Simple fetch: Get all subjects for this section
-      // You can add more complex logic here to filter by 'department' if the class has one
-      const { data } = await supabase.from('subjects').select('*').eq('section', section).order('name');
-      if (data) setSubjectList(data);
-    };
-    fetchSubjects();
-  }, [section]);
-
-  // 4. Fetch Students when Class is Selected
-  const handleLoadStudents = async () => {
-    if (!classId || !subjectId) {
-      toast({ variant: "destructive", title: "Missing Fields", description: "Please select a Class and Subject." });
-      return;
-    }
+  const fetchClassList = async () => {
+    if (!selectedClass) return;
     setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('students')
-        .select('id, full_name, admission_number')
-        .eq('class_id', classId)
-        .eq('is_active', true)
-        .order('full_name');
+    
+    // 1. Get Students
+    const { data: stud } = await supabase.from('students').select('*').eq('class_id', selectedClass).eq('is_active', true).order('full_name');
+    setStudents(stud || []);
 
-      if (error) throw error;
-
-      // Transform to include score fields
-      const rows = data.map(s => ({
-        id: s.id,
-        name: s.full_name,
-        admission_number: s.admission_number,
-        ca_score: "",
-        exam_score: ""
-      }));
-      
-      setStudents(rows);
-      if (rows.length === 0) toast({ description: "No students found in this class." });
-
-    } catch (err: any) {
-      toast({ variant: "destructive", title: "Error", description: err.message });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // 5. Handle Score Input
-  const updateScore = (id: string, field: 'ca_score' | 'exam_score', value: string) => {
-    setStudents(prev => prev.map(s => s.id === id ? { ...s, [field]: value } : s));
-  };
-
-  // 6. Submit Results
-  const handleSubmit = async () => {
-    setSaving(true);
-    try {
-      const resultsToUpload = students
-        .filter(s => s.ca_score !== "" || s.exam_score !== "") // Only upload if entered
-        .map(s => {
-          const ca = Number(s.ca_score) || 0;
-          const exam = Number(s.exam_score) || 0;
-          const total = ca + exam;
-          
-          let grade = 'F';
-          if (total >= 70) grade = 'A';
-          else if (total >= 60) grade = 'B';
-          else if (total >= 50) grade = 'C';
-          else if (total >= 45) grade = 'D';
-          else if (total >= 40) grade = 'E';
-
-          return {
-            student_id: s.id,
-            subject_id: subjectId,
-            ca_score: ca,
-            exam_score: exam,
-            grade: grade,
-            uploaded_by: teacher.id,
-            term: "1st Term",      // Hardcoded for MVP, make dynamic later
-            session: "2025/2026",  // Hardcoded for MVP
-            is_approved: false     // Pending Principal Approval
-          };
+    // 2. Get Scores
+    if (selectedSubject && stud) {
+        const { data: existing } = await supabase.from('academic_results').select('*')
+            .eq('class_id', selectedClass).eq('subject_id', selectedSubject)
+            .eq('session', selectedSession).eq('term', selectedTerm);
+        
+        const initialScores: any = {};
+        stud.forEach(s => {
+            const found = existing?.find(e => e.student_id === s.id);
+            initialScores[s.id] = { ca: found ? found.ca_score : "", exam: found ? found.exam_score : "" };
         });
+        setScores(initialScores);
+    }
+    setLoading(false);
+  };
 
-      if (resultsToUpload.length === 0) {
-        toast({ title: "Nothing to save", description: "Enter scores first." });
-        setSaving(false);
-        return;
-      }
+  const handleScoreChange = (id: string, field: 'ca' | 'exam', val: string) => {
+    setScores(prev => ({ ...prev, [id]: { ...prev[id], [field]: val } }));
+  };
 
-      const { error } = await supabase.from('academic_results').upsert(resultsToUpload); // UPSERT handles updates if ID matches, but we don't have result ID here. 
-      // Note: A true UPSERT needs a unique constraint on (student_id, subject_id, term, session). 
-      // For now, this effectively inserts new rows. We can add a constraint later to prevent duplicates.
-      
-      if (error) throw error;
+  const submitScores = async () => {
+    if (!selectedSubject) { toast({variant: "destructive", title: "Select a Subject first"}); return; }
+    setLoading(true);
+    
+    const updates = students.map(s => {
+        const ca = Number(scores[s.id]?.ca || 0);
+        const exam = Number(scores[s.id]?.exam || 0);
+        
+        // We calculate Grade for display/logic, but we do NOT send total_score if DB handles it
+        const total = ca + exam; 
+        let grade = 'F';
+        if (total >= 75) grade = 'A'; else if (total >= 65) grade = 'B'; else if (total >= 50) grade = 'C'; else if (total >= 40) grade = 'D';
+        
+        return {
+            student_id: s.id, 
+            class_id: selectedClass, 
+            subject_id: selectedSubject, 
+            session: selectedSession, 
+            term: selectedTerm,
+            ca_score: ca, 
+            exam_score: exam,
+            // ⚠️ REMOVED 'total_score' to fix your error (The DB likely generates this)
+            grade: grade, 
+            is_approved: false
+        };
+    });
+    
+    // We use the new constraint 'unique_result_per_term' automatically by specifying the conflict columns
+    const { error } = await supabase.from('academic_results').upsert(updates, { onConflict: 'student_id, subject_id, session, term' });
+    
+    setLoading(false);
+    if (!error) toast({ title: "Saved", description: "Academic scores uploaded successfully." });
+    else toast({ variant: "destructive", title: "Error", description: error.message });
+  };
 
-      toast({ title: "Success!", description: `Uploaded results for ${resultsToUpload.length} students.` });
-      setStudents([]); // Clear list or keep it? Clearing is safer.
-
-    } catch (err: any) {
-      toast({ variant: "destructive", title: "Upload Failed", description: err.message });
-    } finally {
-      setSaving(false);
+  const openReportModal = async (s: any) => {
+    setSelectedStudent(s);
+    const { data } = await supabase.from('report_card_details').select('*')
+        .eq('student_id', s.id).eq('session', selectedSession).eq('term', selectedTerm).maybeSingle();
+    
+    if (data) {
+        setReportData({
+            opened: data.school_opened, present: data.times_present, absent: data.times_absent,
+            formRemark: data.form_master_remark || "", houseRemark: data.house_master_remark || "", principalRemark: data.principal_remark || "",
+            skills: data.psychomotor_skills || reportData.skills
+        });
     }
   };
 
-  if (!teacher) return null;
+  const saveReportDetails = async () => {
+    if (!selectedStudent) return;
+    const payload = {
+        student_id: selectedStudent.id, session: selectedSession, term: selectedTerm,
+        school_opened: reportData.opened, times_present: reportData.present, times_absent: reportData.absent,
+        form_master_remark: reportData.formRemark, house_master_remark: reportData.houseRemark, principal_remark: reportData.principalRemark,
+        psychomotor_skills: reportData.skills
+    };
+    
+    const { error } = await supabase.from('report_card_details').upsert(payload, { onConflict: 'student_id, session, term' });
+    if (!error) {
+        toast({ title: "Saved", description: "Report card details updated." });
+        setSelectedStudent(null);
+    }
+  };
+
+  if (!user) return null;
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      
-      <main className="pt-24 pb-16 px-4">
-        <div className="container mx-auto max-w-5xl">
-          
-          {/* Header */}
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-             <div className="flex items-center gap-4">
-              <Avatar className="w-16 h-16 border border-border">
-                <AvatarImage src={teacher.passport_url} />
-                <AvatarFallback>{teacher.full_name[0]}</AvatarFallback>
-              </Avatar>
-              <div>
-                <h1 className="font-display text-2xl font-bold text-foreground">Teacher Dashboard</h1>
-                <p className="text-muted-foreground">{teacher.full_name} | {teacher.role.toUpperCase()}</p>
-              </div>
-            </div>
-            <Button variant="outline" onClick={() => { localStorage.clear(); navigate("/login"); }}>
-              <LogOut className="w-4 h-4 mr-2" /> Logout
-            </Button>
-          </div>
-
-          {/* Controls */}
-          <Card className="mb-8 shadow-soft border-border">
-            <CardHeader><CardTitle>Upload Class Results</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                
-                {/* 1. Select Section */}
-                <div className="space-y-2">
-                  <Label>School Section</Label>
-                  <Select value={section} onValueChange={setSection}>
-                    <SelectTrigger><SelectValue placeholder="Choose Section" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="nursery">Nursery & KG</SelectItem>
-                      <SelectItem value="primary">Primary</SelectItem>
-                      <SelectItem value="secondary">Secondary</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* 2. Select Class (Dependent on Section) */}
-                <div className="space-y-2">
-                  <Label>Class</Label>
-                  <Select value={classId} onValueChange={setClassId} disabled={!section}>
-                    <SelectTrigger><SelectValue placeholder="Choose Class" /></SelectTrigger>
-                    <SelectContent>
-                      {classList.map(c => (
-                        <SelectItem key={c.id} value={c.id}>{c.name} {c.department ? `(${c.department})` : ''}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* 3. Select Subject (Dependent on Section) */}
-                <div className="space-y-2">
-                  <Label>Subject</Label>
-                  <Select value={subjectId} onValueChange={setSubjectId} disabled={!section}>
-                    <SelectTrigger><SelectValue placeholder="Choose Subject" /></SelectTrigger>
-                    <SelectContent>
-                      {subjectList.map(s => (
-                        <SelectItem key={s.id} value={s.id}>{s.name} {s.department ? `[${s.department}]` : ''}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <Button onClick={handleLoadStudents} disabled={loading || !classId || !subjectId} className="w-full md:w-auto">
-                {loading ? <Loader2 className="animate-spin mr-2" /> : <Users className="w-4 h-4 mr-2" />}
-                Load Student List
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Student List for Scoring */}
-          {students.length > 0 && (
-            <Card className="animate-in fade-in slide-in-from-bottom-2">
-              <CardHeader className="flex flex-row justify-between items-center border-b">
-                <CardTitle>Enter Scores</CardTitle>
-                <div className="text-sm text-muted-foreground bg-secondary px-3 py-1 rounded-full">
-                  {students.length} Students
-                </div>
-              </CardHeader>
-              <CardContent className="p-0">
-                <div className="max-h-[500px] overflow-y-auto">
-                  <table className="w-full text-sm">
-                    <thead className="bg-muted sticky top-0">
-                      <tr>
-                        <th className="p-4 text-left font-medium">Student Name</th>
-                        <th className="p-4 text-left font-medium w-32">Admission No</th>
-                        <th className="p-4 w-24">CA (40)</th>
-                        <th className="p-4 w-24">Exam (60)</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y">
-                      {students.map((student) => (
-                        <tr key={student.id} className="hover:bg-muted/20 transition-colors">
-                          <td className="p-4 font-medium">{student.name}</td>
-                          <td className="p-4 text-muted-foreground">{student.admission_number}</td>
-                          <td className="p-4">
-                            <Input 
-                              type="number" 
-                              max={40}
-                              className="w-20 text-center"
-                              value={student.ca_score}
-                              onChange={(e) => updateScore(student.id, 'ca_score', e.target.value)}
-                            />
-                          </td>
-                          <td className="p-4">
-                            <Input 
-                              type="number" 
-                              max={60}
-                              className="w-20 text-center"
-                              value={student.exam_score}
-                              onChange={(e) => updateScore(student.id, 'exam_score', e.target.value)}
-                            />
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                
-                <div className="p-4 bg-muted/30 border-t flex justify-end">
-                  <Button onClick={handleSubmit} disabled={saving} className="bg-green-600 hover:bg-green-700 text-white min-w-[200px]">
-                    {saving ? <Loader2 className="animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
-                    Save & Submit Results
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
+    <div className="min-h-screen bg-slate-50 font-sans pb-20">
+      <header className="bg-white border-b px-6 py-4 flex justify-between sticky top-0 z-20 shadow-sm">
+        <div className="flex items-center gap-3">
+            <Avatar><AvatarImage src={user.passport_url} /><AvatarFallback>TC</AvatarFallback></Avatar>
+            <div><h1 className="font-bold">{user.full_name}</h1><p className="text-xs text-slate-500">Teacher Portal</p></div>
         </div>
+        <Button variant="destructive" size="sm" onClick={() => navigate('/login')}><LogOut className="w-4 h-4 mr-2"/> Logout</Button>
+      </header>
+
+      <main className="p-6 container mx-auto max-w-6xl">
+        <Card className="mb-6 border-t-4 border-t-blue-600">
+            <CardHeader><CardTitle>Class Sheet Loader</CardTitle></CardHeader>
+            <CardContent className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                <Select value={selectedSession} onValueChange={setSelectedSession}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="2025/2026">2025/2026</SelectItem></SelectContent></Select>
+                <Select value={selectedTerm} onValueChange={setSelectedTerm}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="1st Term">1st Term</SelectItem></SelectContent></Select>
+                <Select value={selectedClass} onValueChange={setSelectedClass}><SelectTrigger><SelectValue placeholder="Select Class"/></SelectTrigger><SelectContent>{classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select>
+                <Select value={selectedSubject} onValueChange={setSelectedSubject}><SelectTrigger><SelectValue placeholder="Select Subject"/></SelectTrigger><SelectContent>{subjects.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent></Select>
+                <Button onClick={fetchClassList} disabled={loading}>{loading ? <Loader2 className="animate-spin"/> : "Load Data"}</Button>
+            </CardContent>
+        </Card>
+
+        {students.length > 0 && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                {/* 1. ACADEMIC SCORES TABLE */}
+                <Card className="lg:col-span-2 shadow-md">
+                    <CardHeader className="flex flex-row justify-between bg-gray-50 border-b py-3 items-center">
+                        <CardTitle className="text-sm uppercase tracking-wide">Academic Scores</CardTitle>
+                        <Button onClick={submitScores} size="sm" className="bg-green-600 hover:bg-green-700"><Save className="w-4 h-4 mr-2"/> Save Marks</Button>
+                    </CardHeader>
+                    <CardContent className="p-0 max-h-[600px] overflow-auto">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead className="w-[40%]">Student</TableHead>
+                                    <TableHead>CA (40)</TableHead>
+                                    <TableHead>Exam (60)</TableHead>
+                                    <TableHead>Total</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {students.map((s) => (
+                                    <TableRow key={s.id}>
+                                        <TableCell className="font-medium">{s.full_name}</TableCell>
+                                        <TableCell><Input type="number" className="w-20" value={scores[s.id]?.ca || ''} onChange={e => handleScoreChange(s.id, 'ca', e.target.value)} /></TableCell>
+                                        <TableCell><Input type="number" className="w-20" value={scores[s.id]?.exam || ''} onChange={e => handleScoreChange(s.id, 'exam', e.target.value)} /></TableCell>
+                                        <TableCell className="font-bold text-lg">{Number(scores[s.id]?.ca||0) + Number(scores[s.id]?.exam||0)}</TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
+
+                {/* 2. REPORT DETAILS ENTRY */}
+                <Card className="shadow-md h-fit">
+                    <CardHeader className="bg-blue-50 border-b py-3"><CardTitle className="text-sm uppercase tracking-wide">Report Card Details</CardTitle></CardHeader>
+                    <CardContent className="pt-4">
+                        <p className="text-xs text-gray-500 mb-4">Click a student to enter Attendance, Skills & Remarks.</p>
+                        <div className="space-y-2 max-h-[500px] overflow-auto">
+                            {students.map(s => (
+                                <Dialog key={s.id}>
+                                    <DialogTrigger asChild>
+                                        <Button variant="outline" className="w-full justify-between h-auto py-3 text-left" onClick={() => openReportModal(s)}>
+                                            <span className="truncate">{s.full_name}</span> 
+                                            <FileText className="w-4 h-4 text-blue-500 shrink-0"/>
+                                        </Button>
+                                    </DialogTrigger>
+                                </Dialog>
+                            ))}
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+        )}
+
+        {/* --- MODAL FOR ATTENDANCE & SKILLS --- */}
+        <Dialog open={!!selectedStudent} onOpenChange={(o) => !o && setSelectedStudent(null)}>
+            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader className="border-b pb-4">
+                    <DialogTitle className="text-xl">Report Details: <span className="text-blue-600">{selectedStudent?.full_name}</span></DialogTitle>
+                </DialogHeader>
+                
+                <div className="grid gap-6 py-4">
+                    <div className="bg-gray-50 p-4 rounded-lg border">
+                        <h4 className="font-bold text-sm mb-3 uppercase text-gray-500">Attendance</h4>
+                        <div className="grid grid-cols-3 gap-4">
+                            <div><Label>School Opened</Label><Input value={reportData.opened} onChange={e => setReportData({...reportData, opened: e.target.value})}/></div>
+                            <div><Label>Times Present</Label><Input value={reportData.present} onChange={e => setReportData({...reportData, present: e.target.value})}/></div>
+                            <div><Label>Times Absent</Label><Input value={reportData.absent} onChange={e => setReportData({...reportData, absent: e.target.value})}/></div>
+                        </div>
+                    </div>
+
+                    <div className="bg-gray-50 p-4 rounded-lg border">
+                        <h4 className="font-bold text-sm mb-3 uppercase text-gray-500">Psychomotor Skills (Rate 1-5)</h4>
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-x-4 gap-y-4">
+                            {Object.keys(reportData.skills).map(skill => (
+                                <div key={skill}>
+                                    <Label className="text-[10px] uppercase font-bold text-gray-400">{skill}</Label>
+                                    <Input 
+                                        type="number" max={5} min={1} 
+                                        value={(reportData.skills as any)[skill]} 
+                                        onChange={(e) => setReportData({...reportData, skills: {...reportData.skills, [skill]: Number(e.target.value)}})} 
+                                        className="h-8"
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="bg-gray-50 p-4 rounded-lg border">
+                        <h4 className="font-bold text-sm mb-3 uppercase text-gray-500">Remarks</h4>
+                        <div className="space-y-3">
+                            <div><Label>Form Master's Remark</Label><Input value={reportData.formRemark} onChange={e => setReportData({...reportData, formRemark: e.target.value})}/></div>
+                            <div><Label>House Master's Remark</Label><Input value={reportData.houseRemark} onChange={e => setReportData({...reportData, houseRemark: e.target.value})}/></div>
+                            <div><Label>Principal's Remark</Label><Input value={reportData.principalRemark} onChange={e => setReportData({...reportData, principalRemark: e.target.value})}/></div>
+                        </div>
+                    </div>
+                </div>
+
+                <Button onClick={saveReportDetails} className="w-full h-12 text-lg bg-blue-600 hover:bg-blue-700 font-bold shadow-md">
+                    <CheckCircle2 className="w-5 h-5 mr-2"/> Save Report Details
+                </Button>
+            </DialogContent>
+        </Dialog>
       </main>
     </div>
   );
