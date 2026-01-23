@@ -5,7 +5,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 // Pages
-import Index from "./pages/Index";
+// import Index from "./pages/Index";  <-- OLD HOMEPAGE (You can delete this file later)
+import LandingPage from "./pages/LandingPage"; // <-- NEW LANDING PAGE IMPORT
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 
@@ -50,7 +51,8 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           {/* Public Routes */}
-          <Route path="/" element={<Index />} />
+          {/* THE NEW LANDING PAGE IS NOW THE HOME ROUTE */}
+          <Route path="/" element={<LandingPage />} /> 
           <Route path="/login" element={<Login />} />
 
           {/* === 1. PROPRIETOR DASHBOARD === */}

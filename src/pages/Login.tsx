@@ -8,7 +8,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
-import { Loader2, Lock, User, School, Key } from "lucide-react";
+import { Loader2, Lock, User, School, Key, Eye, EyeOff } from "lucide-react";
+import logo from "/Almustapha.png";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -20,11 +21,12 @@ const Login = () => {
   // Staff State
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false); // Toggle for Staff
 
   // Student State
   const [admissionNo, setAdmissionNo] = useState("");
-  // 👇 THIS WAS MISSING IN YOUR CODE
   const [pin, setPin] = useState(""); 
+  const [showPin, setShowPin] = useState(false); // Toggle for Student PIN
   
   // --- STAFF LOGIN ---
   const handleStaffLogin = async (e: React.FormEvent) => {
@@ -105,8 +107,8 @@ const Login = () => {
     <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4 font-sans">
       <div className="w-full max-w-md space-y-8">
         <div className="text-center space-y-2">
-           <div className="bg-white p-3 rounded-full inline-block shadow-sm">
-             <School className="w-10 h-10 text-green-700" />
+           <div className="bg-white rounded-full inline-block shadow-sm">
+             <img src={logo} className="w-20 h-20 rounded-full" alt="Al-Mustapha Logo" />
            </div>
            <h1 className="text-3xl font-bold text-slate-900 font-display">Al-Mustapha Portal</h1>
            <p className="text-slate-500">Secure Access Gateway</p>
@@ -134,7 +136,21 @@ const Login = () => {
                     <Label>Password</Label>
                     <div className="relative">
                       <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                      <Input className="pl-10" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                      <Input 
+                        className="pl-10 pr-10" 
+                        type={showPassword ? "text" : "password"} 
+                        placeholder="••••••••" 
+                        value={password} 
+                        onChange={(e) => setPassword(e.target.value)} 
+                        required 
+                      />
+                      <button 
+                        type="button" 
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-3 text-gray-400 hover:text-gray-600 focus:outline-none"
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
                     </div>
                   </div>
                   <Button type="submit" disabled={loading} className="w-full bg-slate-900 hover:bg-slate-800 text-white">
@@ -149,15 +165,29 @@ const Login = () => {
                     <Label>Admission Number</Label>
                     <div className="relative">
                       <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                      <Input className="pl-10 uppercase placeholder:normal-case" placeholder="AMS/PRI/7504" value={admissionNo} onChange={(e) => setAdmissionNo(e.target.value)} required />
+                      <Input className="pl-10 uppercase placeholder:normal-case" placeholder="AMS/..../..." value={admissionNo} onChange={(e) => setAdmissionNo(e.target.value)} required />
                     </div>
                   </div>
                   <div className="space-y-2">
                     <Label>Access PIN</Label>
                     <div className="relative">
                       <Key className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                      {/* 👇 THIS IS WHERE YOUR ERROR WAS (pin variable) */}
-                      <Input type="password" className="pl-10" placeholder="• • • •" value={pin} onChange={(e) => setPin(e.target.value)} required maxLength={4} />
+                      <Input 
+                        type={showPin ? "text" : "password"} 
+                        className="pl-10 pr-10" 
+                        placeholder="• • • •" 
+                        value={pin} 
+                        onChange={(e) => setPin(e.target.value)} 
+                        required 
+                        maxLength={4} 
+                      />
+                      <button 
+                        type="button" 
+                        onClick={() => setShowPin(!showPin)}
+                        className="absolute right-3 top-3 text-gray-400 hover:text-gray-600 focus:outline-none"
+                      >
+                        {showPin ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
                     </div>
                   </div>
                   <Button type="submit" disabled={loading} className="w-full bg-gold text-slate-900 font-bold hover:bg-yellow-500">

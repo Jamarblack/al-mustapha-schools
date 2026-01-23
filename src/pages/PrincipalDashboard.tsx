@@ -1,15 +1,18 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
-import { Users, GraduationCap, FileCheck, LogOut, Menu, Upload, Search, ShieldCheck, X, Phone, Mail, CheckCircle, Loader2 } from "lucide-react";
+import { Users, GraduationCap, FileCheck, LogOut, Menu, Upload, Search, ShieldCheck, X, Phone, Mail, CheckCircle, Loader2, ArrowRightCircle } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 const PrincipalDashboard = () => {
   const navigate = useNavigate();
@@ -25,7 +28,14 @@ const PrincipalDashboard = () => {
   const [staffList, setStaffList] = useState<any[]>([]);
   const [studentList, setStudentList] = useState<any[]>([]);
   const [pendingResults, setPendingResults] = useState<any[]>([]);
+  const [classList, setClassList] = useState<any[]>([]); // Added for promotion dropdowns
   const [searchTerm, setSearchTerm] = useState("");
+
+  // --- PROMOTION STATE ---
+  const [promoteSourceClass, setPromoteSourceClass] = useState("");
+  const [promoteTargetClass, setPromoteTargetClass] = useState("");
+  const [studentsToPromoteList, setStudentsToPromoteList] = useState<any[]>([]);
+  const [selectedForPromotion, setSelectedForPromotion] = useState<string[]>([]);
 
   useEffect(() => {
     const data = localStorage.getItem("staffData");
@@ -38,6 +48,7 @@ const PrincipalDashboard = () => {
 
   const loadData = async () => {
     setLoading(true);
+    // 1. Stats & Lists
     const { count: sCount } = await supabase.from('students').select('*', { count: 'exact', head: true }).eq('section', 'secondary');
     const { data: staff } = await supabase.from('staff').select('*').or('assigned_section.eq.secondary,assigned_section.eq.all').neq('role', 'proprietor').order('full_name');
     if (staff) setStaffList(staff);
@@ -46,6 +57,11 @@ const PrincipalDashboard = () => {
     const { data: results } = await supabase.from('academic_results').select(`*, student:students!inner(full_name, section, class:classes(name)), subject:subjects(name)`).eq('is_approved', false).eq('student.section', 'secondary'); 
     if (results) setPendingResults(results);
     setStats({ students: sCount || 0, staff: staff?.length || 0, pendingResults: results?.length || 0 });
+
+    // 2. Fetch Secondary Classes for Promotion Dropdowns
+    const { data: classes } = await supabase.from('classes').select('*').eq('section', 'secondary').order('name');
+    if (classes) setClassList(classes);
+
     setLoading(false);
   };
 
@@ -76,6 +92,34 @@ const PrincipalDashboard = () => {
     } catch (error: any) { toast({ variant: "destructive", title: "Upload Failed", description: error.message }); } finally { setLoading(false); }
   };
 
+   // --- PROMOTION HANDLERS ---
+   const fetchStudentsForPromotion = async (sourceClassId: string) => {
+    setLoading(true);
+    // Ensure we only fetch active students in the selected secondary class
+    const { data } = await supabase.from('students').select('id, full_name, admission_number').eq('class_id', sourceClassId).eq('is_active', true).eq('section', 'secondary').order('full_name');
+    setStudentsToPromoteList(data || []);
+    setSelectedForPromotion(data ? data.map(s => s.id) : []); // Select all by default
+    setLoading(false);
+  };
+
+  const handleExecutePromotion = async () => {
+    if (!promoteSourceClass || !promoteTargetClass || selectedForPromotion.length === 0) {
+        toast({ variant: "destructive", title: "Error", description: "Select source, target, and at least one student." }); return;
+    }
+    setLoading(true);
+    // We don't need to fetch targetClassData for section, as the dropdown only contains secondary classes anyway.
+    const { error } = await supabase.from('students').update({ class_id: promoteTargetClass }).in('id', selectedForPromotion);
+    
+    setLoading(false);
+    if (error) toast({ variant: "destructive", title: "Promotion Failed", description: error.message });
+    else { 
+        toast({ title: "Success", description: `${selectedForPromotion.length} students promoted successfully.` });
+        // Reset UI & Refresh Data
+        setPromoteSourceClass(""); setPromoteTargetClass(""); setStudentsToPromoteList([]); setSelectedForPromotion([]);
+        loadData(); 
+    }
+  };
+
   if (!user) return null;
 
   const StaffCard = ({ s }: { s: any }) => (<Card className="mb-4 shadow-sm border-l-4 border-l-blue-500"><CardContent className="pt-6"><div className="flex items-start gap-4"><Avatar className="w-14 h-14"><AvatarImage src={s.passport_url} /><AvatarFallback>{s.full_name[0]}</AvatarFallback></Avatar><div className="flex-1 overflow-hidden"><h3 className="font-bold text-base truncate">{s.full_name}</h3><Badge variant="secondary" className="mb-2 capitalize text-xs">{s.role.replace('_', ' ')}</Badge><div className="text-xs text-gray-600 space-y-1"><div className="flex items-center gap-2"><Phone className="w-3 h-3"/> {s.phone_number || 'N/A'}</div><div className="flex items-center gap-2"><Mail className="w-3 h-3"/> {s.email}</div></div></div></div></CardContent></Card>);
@@ -92,7 +136,7 @@ const PrincipalDashboard = () => {
           <div className="text-center"><h2 className="font-bold text-lg truncate w-48">{user.full_name}</h2><Badge variant="secondary" className="mt-1 bg-blue-700 text-blue-100 hover:bg-blue-600">Principal</Badge></div>
         </div>
         <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-          {[{ id: 'overview', label: 'Dashboard', icon: ShieldCheck }, { id: 'staff', label: 'Secondary Staff', icon: Users }, { id: 'students', label: 'Secondary Students', icon: GraduationCap }, { id: 'results', label: 'Approve Results', icon: FileCheck }, { id: 'profile', label: 'My Profile', icon: Users }].map((item) => (
+          {[{ id: 'overview', label: 'Dashboard', icon: ShieldCheck }, { id: 'promotion', label: 'Promotion', icon: ArrowRightCircle }, { id: 'staff', label: 'Secondary Staff', icon: Users }, { id: 'students', label: 'Secondary Students', icon: GraduationCap }, { id: 'results', label: 'Approve Results', icon: FileCheck }, { id: 'profile', label: 'My Profile', icon: Users }].map((item) => (
             <Button key={item.id} variant="ghost" onClick={() => { setActiveTab(item.id); setIsSidebarOpen(false); }} className={`w-full justify-start py-6 text-base ${activeTab === item.id ? 'bg-blue-800 text-white shadow-md' : 'text-blue-100 hover:bg-blue-800/50'}`}>
               <item.icon className="w-5 h-5 mr-3" />{item.label}
             </Button>
@@ -109,6 +153,73 @@ const PrincipalDashboard = () => {
 
         <div className="flex-1 overflow-auto p-4 md:p-6 pb-24">
           {activeTab === 'overview' && (<div className="grid grid-cols-1 md:grid-cols-3 gap-4"><Card className="bg-gradient-to-br from-blue-600 to-blue-800 text-white border-none shadow-lg"><CardHeader className="pb-2"><CardTitle className="text-sm opacity-90">Secondary Students</CardTitle></CardHeader><CardContent><div className="text-4xl font-bold">{stats.students}</div></CardContent></Card><Card className="bg-white border-l-4 border-blue-600 shadow-md"><CardHeader className="pb-2"><CardTitle className="text-sm text-gray-500">Staff Count</CardTitle></CardHeader><CardContent><div className="text-4xl font-bold text-blue-900">{stats.staff}</div></CardContent></Card><Card className="bg-white border-l-4 border-orange-500 shadow-md"><CardHeader className="pb-2"><CardTitle className="text-sm text-gray-500">Pending Results</CardTitle></CardHeader><CardContent><div className="text-4xl font-bold text-orange-600">{stats.pendingResults}</div>{stats.pendingResults > 0 && <Button variant="link" onClick={() => setActiveTab('results')} className="px-0 h-auto text-orange-600">Review Now &rarr;</Button>}</CardContent></Card></div>)}
+          
+          {/* --- NEW PROMOTION TAB (SECONDARY ONLY) --- */}
+          {activeTab === 'promotion' && (
+            <Card className="max-w-4xl mx-auto border-t-4 border-t-blue-800 shadow-lg">
+                <CardHeader>
+                    <CardTitle>Secondary Section Promotion</CardTitle>
+                    <CardDescription>Move students to their next class. Only Secondary classes are available here.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-blue-50/50 rounded-lg border border-blue-100">
+                        <div className="space-y-2">
+                            <Label>1. Current Class (Source)</Label>
+                            <Select onValueChange={(v) => { setPromoteSourceClass(v); fetchStudentsForPromotion(v); }}>
+                                <SelectTrigger><SelectValue placeholder="Select Class" /></SelectTrigger>
+                                <SelectContent>{classList.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>2. Next Session Class (Target)</Label>
+                            <Select onValueChange={setPromoteTargetClass} disabled={!promoteSourceClass}>
+                                <SelectTrigger><SelectValue placeholder="Select Class" /></SelectTrigger>
+                                <SelectContent>{classList.filter(c => c.id !== promoteSourceClass).map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+
+                    {studentsToPromoteList.length > 0 && (
+                        <div className="border rounded-md overflow-hidden">
+                            <div className="bg-blue-100 p-3 flex justify-between items-center border-b border-blue-200">
+                                <h3 className="font-bold text-blue-900">3. Select Students ({selectedForPromotion.length}/{studentsToPromoteList.length})</h3>
+                                <div className="flex gap-2">
+                                    <Button variant="outline" size="sm" onClick={() => setSelectedForPromotion(studentsToPromoteList.map(s => s.id))} className="border-blue-300 text-blue-700 hover:bg-blue-50">Select All</Button>
+                                    <Button variant="outline" size="sm" onClick={() => setSelectedForPromotion([])} className="border-blue-300 text-blue-700 hover:bg-blue-50">Deselect All</Button>
+                                </div>
+                            </div>
+                            <div className="max-h-[400px] overflow-auto">
+                                <Table>
+                                    <TableHeader><TableRow><TableHead className="w-[50px]"></TableHead><TableHead>Student Name</TableHead><TableHead>Admission No.</TableHead></TableRow></TableHeader>
+                                    <TableBody>
+                                        {studentsToPromoteList.map(s => (
+                                            <TableRow key={s.id}>
+                                                <TableCell><Checkbox checked={selectedForPromotion.includes(s.id)} onCheckedChange={(checked) => { if (checked) setSelectedForPromotion([...selectedForPromotion, s.id]); else setSelectedForPromotion(selectedForPromotion.filter(id => id !== s.id)); }}/></TableCell>
+                                                <TableCell className="font-medium">{s.full_name}</TableCell>
+                                                <TableCell>{s.admission_number}</TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        </div>
+                    )}
+
+                    <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button className="w-full py-6 text-lg bg-blue-800 hover:bg-blue-900 font-bold shadow-md" disabled={selectedForPromotion.length === 0 || !promoteTargetClass || loading}>
+                                {loading ? <Loader2 className="animate-spin mr-2" /> : `Promote ${selectedForPromotion.length} Students`}
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader><AlertDialogTitle>Confirm Promotion</AlertDialogTitle><AlertDialogDescription>Are you sure you want to move {selectedForPromotion.length} students to the new class?</AlertDialogDescription></AlertDialogHeader>
+                            <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleExecutePromotion} className="bg-blue-800">Yes, Promote Them</AlertDialogAction></AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                </CardContent>
+            </Card>
+          )}
+          
           {activeTab === 'staff' && (<div><div className="mb-4 md:hidden"><Input placeholder="Search staff..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="bg-white" /></div><div className="md:hidden">{staffList.filter(s => s.full_name.toLowerCase().includes(searchTerm.toLowerCase())).map(s => <StaffCard key={s.id} s={s} />)}</div><Card className="hidden md:block shadow-md"><CardHeader><CardTitle>Secondary School Staff</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Passport</TableHead><TableHead>Full Name</TableHead><TableHead>Role</TableHead><TableHead>Phone</TableHead><TableHead>Email</TableHead></TableRow></TableHeader><TableBody>{staffList.filter(s => s.full_name.toLowerCase().includes(searchTerm.toLowerCase())).map((s) => (<TableRow key={s.id}><TableCell><Avatar className="w-10 h-10"><AvatarImage src={s.passport_url} /><AvatarFallback>{s.full_name[0]}</AvatarFallback></Avatar></TableCell><TableCell className="font-medium">{s.full_name}</TableCell><TableCell><Badge variant="outline" className="capitalize">{s.role.replace('_', ' ')}</Badge></TableCell><TableCell>{s.phone_number || '-'}</TableCell><TableCell>{s.email}</TableCell></TableRow>))}</TableBody></Table></CardContent></Card></div>)}
           {activeTab === 'students' && (<div><div className="mb-4 md:hidden"><Input placeholder="Search students..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="bg-white" /></div><div className="md:hidden">{studentList.filter(s => s.full_name.toLowerCase().includes(searchTerm.toLowerCase())).map(s => <StudentCard key={s.id} s={s} />)}</div><Card className="hidden md:block shadow-md"><CardHeader><CardTitle>Secondary School Students</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Passport</TableHead><TableHead>Name</TableHead><TableHead>Class</TableHead><TableHead>ID</TableHead><TableHead className="text-blue-600 font-bold">PIN</TableHead><TableHead>Parent Phone</TableHead></TableRow></TableHeader><TableBody>{studentList.filter(s => s.full_name.toLowerCase().includes(searchTerm.toLowerCase())).map((s) => (<TableRow key={s.id}><TableCell><Avatar className="w-10 h-10"><AvatarImage src={s.passport_url} /></Avatar></TableCell><TableCell className="font-bold text-blue-900">{s.full_name}</TableCell><TableCell><Badge variant="secondary">{s.class?.name}</Badge></TableCell><TableCell>{s.admission_number}</TableCell><TableCell className="font-mono text-lg font-bold text-blue-600">{s.pin_code}</TableCell><TableCell>{s.emergency_contact}</TableCell></TableRow>))}</TableBody></Table></CardContent></Card></div>)}
           {activeTab === 'results' && (<div><div className="md:hidden">{pendingResults.length === 0 ? <div className="text-center py-10 text-gray-400">No Pending Results</div> : pendingResults.map(r => <ResultCard key={r.id} r={r} />)}</div><Card className="hidden md:block shadow-md"><CardHeader><CardTitle>Pending Result Approvals</CardTitle></CardHeader><CardContent>{pendingResults.length === 0 ? <div className="text-center py-12 text-gray-500">No results awaiting approval.</div> : (<Table><TableHeader><TableRow><TableHead>Student</TableHead><TableHead>Subject</TableHead><TableHead>Scores</TableHead><TableHead>Total</TableHead><TableHead>Action</TableHead></TableRow></TableHeader><TableBody>{pendingResults.map((r) => (<TableRow key={r.id}><TableCell className="font-medium"><div>{r.student?.full_name}</div><div className="text-xs text-gray-500">{r.student?.class?.name}</div></TableCell><TableCell>{r.subject?.name}</TableCell><TableCell>{r.ca_score} / {r.exam_score}</TableCell><TableCell><span className="font-bold">{r.total_score}</span> <Badge className={`ml-2 ${r.grade === 'F' ? 'bg-red-500' : 'bg-green-600'}`}>{r.grade}</Badge></TableCell><TableCell><Button size="sm" onClick={() => handleApprove(r.id)} className="bg-green-600 hover:bg-green-700">Approve</Button></TableCell></TableRow>))}</TableBody></Table>)}</CardContent></Card></div>)}
