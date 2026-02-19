@@ -238,7 +238,7 @@ const LandingPage = () => {
                         </div>
                         <div className="absolute bottom-2 right-2 bg-yellow-500 text-blue-900 p-3 rounded-full shadow-lg"><Star className="w-6 h-6 fill-current" /></div>
                     </div>
-                    <h3 className="text-2xl font-bold text-blue-900">Alhaji Alao Mustapha</h3>
+                    <h3 className="text-2xl font-bold text-blue-900">Alhaji Ajao Mustapha</h3>
                     <p className="text-blue-600 text-sm font-bold uppercase tracking-wider">Proprietor</p>
                 </div>
 
@@ -252,7 +252,7 @@ const LandingPage = () => {
                          to unlock it."
                     </p>
                     <div className="pt-4 border-t border-blue-50">
-                        <p className="font-handwriting text-3xl text-blue-800 opacity-80">Alh. Alao Mustapha</p>
+                        <p className="font-handwriting text-3xl text-blue-800 opacity-80">Alh. Ajao Mustapha</p>
                     </div>
                 </div>
             </div>
