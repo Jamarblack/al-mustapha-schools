@@ -6,8 +6,20 @@ import { GraduationCap, Users, School, Phone, Mail, MapPin, Menu, X, ArrowRight,
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import logo from "/Almustapha.png";
-import { url } from "inspector";
-import director from "@/assets/pp Almustapha.jpeg"
+import director from "@/assets/pp Almustapha.jpeg";
+import schoolbuilding from "@/assets/AMS school building.jpg";
+import imgslide1 from "@/assets/AMS Comp lab.jpg";
+import imgslide2 from "@/assets/AMS lab sect.jpg";
+import imgslide3 from "@/assets/AMS School b.jpg";
+import imgslide4 from "@/assets/AMS sec building.jpg";
+import imgslide5 from "@/assets/AMS sect2.jpg";
+import imgslide6 from "@/assets/AMS Student.jpg";
+import imgslide7 from "@/assets/AMS Student2.jpg";
+import imgslide8 from "@/assets/AMS library.jpg";
+
+
+
+
 
 const LandingPage = () => {
   const navigate = useNavigate();
@@ -47,11 +59,14 @@ const LandingPage = () => {
   };
 
   const galleryImages = [
-    { src: "https://placehold.co/600x400/1e3a8a/ffffff?text=Academic+Excellence", alt: "Students in Library" },
-    { src: "https://placehold.co/600x400/ca8a04/ffffff?text=Sports+Day", alt: "Sports Activities" },
-    { src: "https://placehold.co/600x400/15803d/ffffff?text=Graduation", alt: "Graduation" },
-    { src: "https://placehold.co/600x400/ea580c/ffffff?text=Science+Lab", alt: "Laboratory" },
-    { src: "https://placehold.co/600x400/7c3aed/ffffff?text=Cultural+Day", alt: "Cultural Events" },
+    { src: imgslide1, alt: "Computer Lab" },
+    { src: imgslide2, alt: "Science Lab" },
+    { src: imgslide3, alt: "School Building" },
+    { src: imgslide4, alt: "Secondary Building" },
+    { src: imgslide5, alt: "Physics Lab" },
+    { src: imgslide6, alt: "Students Secondary" },
+    { src: imgslide7, alt: "Students Primary" },
+    { src: imgslide8, alt: "Library" },
   ];
 
   return (
@@ -172,7 +187,7 @@ const LandingPage = () => {
             {/* Image Frame with Check Pattern */}
             <div className="relative p-4 rounded-2xl shadow-2xl rotate-2 hover:rotate-0 transition-transform duration-500" style={checkPatternStyle}>
                 <div className="bg-white p-1 rounded-xl overflow-hidden h-[450px]">
-                    <img src="https://placehold.co/800x1000/f1f5f9/1e293b?text=School+Building" alt="About Us" className="object-cover w-full h-full rounded-lg" />
+                    <img src={schoolbuilding} alt="About Us" className="object-cover w-full h-full rounded-lg" />
                 </div>
             </div>
 
