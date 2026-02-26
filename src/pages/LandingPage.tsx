@@ -292,7 +292,7 @@ const LandingPage = () => {
                 <ul className="space-y-4">
                     <li className="flex items-start gap-4"><MapPin className="w-5 h-5 text-yellow-500 shrink-0 mt-1" /><span>1. Ajao Mustapha Street Idi-Emi, Ogidi Area Ilorin, Kwara State.</span></li>
                     <li className="flex items-center gap-4"><Phone className="w-5 h-5 text-yellow-500 shrink-0" /><span>08053503125, 07036239149</span></li>
-                    <li className="flex items-center gap-4"><Mail className="w-5 h-5 text-yellow-500 shrink-0" /><span>info@almustaphaschools.com</span></li>
+                    <li className="flex items-center gap-4"><Mail className="w-5 h-5 text-yellow-500 shrink-0" /><span>almustaphamodelschool@gmail.com</span></li>
                 </ul>
             </div>
 
