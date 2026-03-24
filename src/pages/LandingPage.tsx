@@ -202,7 +202,7 @@ const LandingPage = () => {
                     Established with a vision to provide holistic education, Al-Mustapha Model College stands as a pillar of learning in Ilorin. We don't just teach; we mold character. Our unique blend of modern curriculum and moral upbringing ensures every child is prepared for the future.
                 </p>
                 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-2">
+                <div className="grid  sm:grid-cols-2 pt-2">
                     <Card className="border-l-4 border-l-blue-800 shadow-md bg-white hover:shadow-lg transition-shadow"><CardContent className="p-6"><h4 className="font-bold text-lg text-slate-900 mb-1">Our Mission</h4>
                     <p className="text-md text-slate-600">
                        The mission of Almustapha Model Schools is to establish, operate and run an educational institution that caters for the total development of the child through love, service, integrity, patriotism and other enduring virtues and values to enhance the child's growth physically, intellectually, morally and spiritually. The product of Almustapha Model Schools must emerge as leader in whatever service they find themselves at every level in any walk of life.</p></CardContent></Card>

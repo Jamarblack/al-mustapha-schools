@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-// ... (imports remain the same)
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
@@ -11,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { LogOut, Save, FileText, Loader2, CheckCircle2, User, BookOpen, School, Upload } from "lucide-react";
+import { LogOut, Save, FileText, Loader2, User, BookOpen, School, Upload } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 
@@ -28,7 +27,6 @@ const TeacherDashboard = () => {
   const [selectedClass, setSelectedClass] = useState("");
   const [selectedSubject, setSelectedSubject] = useState("");
   
-  // UPDATED: Default state gets overridden by loadMetadata
   const [selectedSession, setSelectedSession] = useState("2025/2026");
   const [selectedTerm, setSelectedTerm] = useState("1st Term");
 
@@ -68,7 +66,6 @@ const TeacherDashboard = () => {
         fetchMyClassStudents(currentUser.class_teacher_of);
     }
 
-    // NEW: Fetch Global Settings to set defaults
     const { data: settings } = await supabase.from('school_settings').select('*').maybeSingle();
     if (settings) {
         setSelectedSession(settings.current_session);
@@ -76,17 +73,13 @@ const TeacherDashboard = () => {
     }
   };
 
-  // ... (getSubjectGroupForClass, handleProfileUpdate, fetchClassList, handleScoreChange remain exact same)
-  // ... (REPLACE THIS COMMENT WITH THE EXISTING LOGIC FROM PREVIOUS FILE TO SAVE SPACE IF YOU WANT, 
-  // ... BUT I WILL PASTE THE FULL FILE BELOW TO BE SAFE)
-
-  // --- SMART SUBJECT FILTERING LOGIC ---
   const getSubjectGroupForClass = (className: string) => {
       const name = className.toUpperCase();
       if (name.includes('KG')) return 'KG';
       if (name.includes('PRE-NURSERY') || name.includes('PRE NURSERY')) return 'Pre-Nursery';
       if (name === 'NURSERY 1') return 'Nursery 1';
-      if (name === 'NURSERY 2' || name === 'BASIC 1' || name === 'BASIC 2') return 'Lower Primary';
+      if (name === 'NURSERY 2') return 'Nursery 2'; 
+      if (name === 'BASIC 1' || name === 'BASIC 2') return 'Lower Primary';
       if (name.includes('BASIC 3') || name.includes('BASIC 4') || name.includes('BASIC 5')) return 'Upper Primary';
       if (name.includes('JSS')) return 'JSS';
       if (name.includes('SS') || name.includes('SSS')) return 'SSS';
@@ -142,15 +135,25 @@ const TeacherDashboard = () => {
     setScores(prev => ({ ...prev, [id]: { ...prev[id], [field]: val } }));
   };
 
+  // --- THIS IS THE FIX FOR THE TEACHER NAME ---
   const submitScores = async () => {
     if (!selectedSubject) { toast({variant: "destructive", title: "Select a Subject first"}); return; }
     setLoading(true);
+    
     const updates = students.map(s => {
         const t1 = Number(scores[s.id]?.test || 0); const t2 = Number(scores[s.id]?.mid || 0); const t3 = Number(scores[s.id]?.ass || 0); const ex = Number(scores[s.id]?.exam || 0);
         const totalCA = t1 + t2 + t3; const total = totalCA + ex;
         let grade = 'F'; if (total >= 75) grade = 'A'; else if (total >= 65) grade = 'B'; else if (total >= 50) grade = 'C'; else if (total >= 40) grade = 'D';
-        return { student_id: s.id, class_id: selectedClass, subject_id: selectedSubject, session: selectedSession, term: selectedTerm, class_test: t1, mid_term_test: t2, assignment: t3, ca_score: totalCA, exam_score: ex, grade: grade, is_approved: false };
+        
+        return { 
+            student_id: s.id, class_id: selectedClass, subject_id: selectedSubject, 
+            session: selectedSession, term: selectedTerm, 
+            class_test: t1, mid_term_test: t2, assignment: t3, ca_score: totalCA, exam_score: ex, grade: grade, 
+            is_approved: false,
+            uploaded_by_name: user.full_name // IT WILL NOW SEND THEIR ACTUAL NAME
+        };
     });
+    
     const { error } = await supabase.from('academic_results').upsert(updates, { onConflict: 'student_id, subject_id, session, term' });
     setLoading(false);
     if (!error) toast({ title: "Saved", description: "Academic scores uploaded." });
@@ -195,20 +198,13 @@ const TeacherDashboard = () => {
         <Tabs defaultValue="profile" value={activeTab} onValueChange={setActiveTab} className="space-y-6">
             <TabsList className="grid w-full grid-cols-3 lg:w-[600px]"><TabsTrigger value="profile"><User className="w-4 h-4 mr-2"/> Profile</TabsTrigger><TabsTrigger value="results"><BookOpen className="w-4 h-4 mr-2"/> Subject Entry</TabsTrigger><TabsTrigger value="class" disabled={!myClassDetails}><School className="w-4 h-4 mr-2"/> My Class</TabsTrigger></TabsList>
 
-            <TabsContent value="profile">
-                <Card>
-                    <CardHeader><CardTitle>Teacher Profile</CardTitle>
-                </CardHeader><CardContent className="space-y-6 text-center md:text-left"><div className="flex flex-col md:flex-row gap-8 items-center"><div className="relative group">
-                    <Avatar className="w-32 h-32 border-4 border-slate-100 shadow-sm"><AvatarImage src={user.passport_url} /><AvatarFallback className="text-4xl">TC</AvatarFallback></Avatar><label htmlFor="upload-pass" className="absolute bottom-0 right-0 bg-blue-600 text-white p-2 rounded-full cursor-pointer shadow-md hover:bg-blue-700"><Upload className="w-4 h-4" /></label><input id="upload-pass" type="file" className="hidden" onChange={e => e.target.files && setMyPassport(e.target.files[0])} /></div><div className="space-y-2 flex-1"><div className="text-2xl font-bold">{user.full_name}</div><div className="text-gray-500 flex items-center gap-2 justify-center md:justify-start"><School className="w-4 h-4"/> {user.role.toUpperCase().replace('_', ' ')}</div>{myPassport && 
-                    <Button onClick={handleProfileUpdate} disabled={loading} size="sm" className="mt-2 bg-blue-600">{loading ? <Loader2 className="animate-spin"/> : "Save New Photo"}</Button>}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 text-left"><div className="bg-slate-50 p-3 rounded border"><span className="text-xs font-bold text-slate-400 block uppercase">Email</span><span className="font-medium">{user.email}</span></div><div className="bg-slate-50 p-3 rounded border"><span className="text-xs font-bold text-slate-400 block uppercase">Login Password</span><span className="font-mono font-bold tracking-widest text-blue-600">{user.password}</span></div></div>{myClassDetails && <div className="mt-4 p-3 bg-purple-50 text-purple-700 rounded-md border border-purple-100 text-sm font-bold">Class Teacher for {myClassDetails.name}</div>}</div></div></CardContent></Card></TabsContent>
+            <TabsContent value="profile"><Card><CardHeader><CardTitle>Teacher Profile</CardTitle></CardHeader><CardContent className="space-y-6 text-center md:text-left"><div className="flex flex-col md:flex-row gap-8 items-center"><div className="relative group"><Avatar className="w-32 h-32 border-4 border-slate-100 shadow-sm"><AvatarImage src={user.passport_url} /><AvatarFallback className="text-4xl">TC</AvatarFallback></Avatar><label htmlFor="upload-pass" className="absolute bottom-0 right-0 bg-blue-600 text-white p-2 rounded-full cursor-pointer shadow-md hover:bg-blue-700"><Upload className="w-4 h-4" /></label><input id="upload-pass" type="file" className="hidden" onChange={e => e.target.files && setMyPassport(e.target.files[0])} /></div><div className="space-y-2 flex-1"><div className="text-2xl font-bold">{user.full_name}</div><div className="text-gray-500 flex items-center gap-2 justify-center md:justify-start"><School className="w-4 h-4"/> {user.role.toUpperCase().replace('_', ' ')}</div>{myPassport && <Button onClick={handleProfileUpdate} disabled={loading} size="sm" className="mt-2 bg-blue-600">{loading ? <Loader2 className="animate-spin"/> : "Save New Photo"}</Button>}<div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 text-left"><div className="bg-slate-50 p-3 rounded border"><span className="text-xs font-bold text-slate-400 block uppercase">Email</span><span className="font-medium">{user.email}</span></div><div className="bg-slate-50 p-3 rounded border"><span className="text-xs font-bold text-slate-400 block uppercase">Login Password</span><span className="font-mono font-bold tracking-widest text-blue-600">{user.password}</span></div></div>{myClassDetails && <div className="mt-4 p-3 bg-purple-50 text-purple-700 rounded-md border border-purple-100 text-sm font-bold">⭐ You are the Class Teacher for {myClassDetails.name}</div>}</div></div></CardContent></Card></TabsContent>
 
             <TabsContent value="results">
                 <Card className="border-t-4 border-t-blue-600">
                     <CardHeader><CardTitle>Input Results</CardTitle></CardHeader>
                     <CardContent>
                         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-                            {/* UPDATED: Dynamic Options, but defaults to global setting */}
                             <Select value={selectedSession} onValueChange={setSelectedSession}>
                                 <SelectTrigger><SelectValue/></SelectTrigger>
                                 <SelectContent>
