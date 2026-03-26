@@ -178,11 +178,31 @@ const TeacherDashboard = () => {
     }
   };
 
-  const saveReportDetails = async () => {
+ const saveReportDetails = async () => {
     if (!selectedStudentReport) return;
-    const payload = { student_id: selectedStudentReport.id, session: selectedSession, term: selectedTerm, school_opened: reportData.opened, times_present: reportData.present, times_absent: reportData.absent, form_master_remark: reportData.teacherRemark, principal_remark: reportData.principalRemark, next_term_begins: reportData.nextTerm, psychomotor_skills: reportData.skills };
+    
+    const payload = { 
+        student_id: selectedStudentReport.id, 
+        session: selectedSession, 
+        term: selectedTerm, 
+        school_opened: reportData.opened, 
+        times_present: reportData.present, 
+        times_absent: reportData.absent, 
+        form_master_remark: reportData.teacherRemark, 
+        principal_remark: reportData.principalRemark, 
+        
+        next_term_begins: reportData.nextTerm || null, 
+        
+        psychomotor_skills: reportData.skills 
+    };
+    
     const { error } = await supabase.from('report_card_details').upsert(payload, { onConflict: 'student_id, session, term' });
-    if (!error) { toast({ title: "Saved", description: "Report details updated." }); setSelectedStudentReport(null); } else { toast({ variant: "destructive", title: "Error", description: error.message }); }
+    if (!error) { 
+        toast({ title: "Saved", description: "Report details updated." }); 
+        setSelectedStudentReport(null); 
+    } else { 
+        toast({ variant: "destructive", title: "Error", description: error.message }); 
+    }
   };
 
   if (!user) return null;
