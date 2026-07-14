@@ -11,7 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { LogOut, GraduationCap, School, Loader2, Upload, Baby, FileCheck, FileSpreadsheet, FileText, User, Plus, Settings, Trash2, EyeOff, Eye, ArchiveX, Users } from "lucide-react";
+import { LogOut, GraduationCap, School, Loader2, Upload, Baby, FileCheck, FileSpreadsheet, FileText, User, Plus, Settings, Trash2, EyeOff, Eye, ArchiveX, Users, Printer } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 
@@ -28,21 +28,17 @@ const HeadTeacherDashboard = () => {
   const [staff, setStaff] = useState<any[]>([]);
   const [primaryClasses, setPrimaryClasses] = useState<any[]>([]);
   
-  // Approvals State
   const [pendingBatches, setPendingBatches] = useState<any[]>([]);
   const [approvedBatches, setApprovedBatches] = useState<any[]>([]);
   const [selectedBatch, setSelectedBatch] = useState<any>(null);
 
-  // Broadsheet State
   const [broadsheetClass, setBroadsheetClass] = useState("");
   const [broadsheetData, setBroadsheetData] = useState<{headers: string[], rows: any[]}|null>(null);
 
-  // Registration State
   const [newStaff, setNewStaff] = useState({ name: "", email: "", password: "", role: "", section: "primary", phone: "", assignedClass: "unassigned" });
   const [newStudent, setNewStudent] = useState({ name: "", classId: "", parentPhone: "", gender: "Male", dob: "" });
   const [showPassword, setShowPassword] = useState(false);
 
-  // Filters State
   const [classFilter, setClassFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -183,7 +179,7 @@ const HeadTeacherDashboard = () => {
                     <CardContent className="p-6">
                         <div className="flex justify-between items-start mb-4"><div className={`p-3 rounded-xl transition-colors ${isApproved ? 'bg-green-50 text-green-600 group-hover:bg-green-600 group-hover:text-white' : 'bg-orange-50 text-orange-600 group-hover:bg-orange-600 group-hover:text-white'}`}><FileText className="w-6 h-6" /></div><Badge variant="outline" className={isApproved ? "bg-green-50 text-green-600 border-green-200" : "bg-orange-50 text-orange-600 border-orange-200"}>{isApproved ? 'Approved' : 'Pending'}</Badge></div>
                         <h3 className="font-bold text-xl text-slate-900 font-serif mb-1">{batch.subject_name}</h3>
-                        <p className="text-sm text-slate-500 border-b pb-4 mb-4">{batch.class_name} | {batch.term}</p>
+                        <p className="text-sm font-bold text-red-500 border-b pb-4 mb-4">{batch.class_name} | {batch.term} | {batch.session}</p>
                         <div className="flex justify-between items-center text-sm text-gray-500"><div className="flex items-center gap-2"><User className="w-4 h-4"/> <span className="truncate max-w-[120px]">{batch.uploaded_by}</span></div><span className="font-bold text-slate-700">{batch.records.length} Students</span></div>
                     </CardContent>
                 </Card>
@@ -193,14 +189,28 @@ const HeadTeacherDashboard = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans pb-20">
-      <header className="bg-white border-b px-6 py-4 flex justify-between sticky top-0 z-20 shadow-sm">
+      {/* CSS For Printing the Broadsheet neatly in Landscape */}
+      <style>{`
+        @media print {
+            body * { visibility: hidden; }
+            #printable-broadsheet, #printable-broadsheet * { visibility: visible; }
+            #printable-broadsheet { position: absolute; left: 0; top: 0; width: 100%; background: white; padding: 0 !important; }
+            .print-hide { display: none !important; }
+            @page { size: landscape; margin: 10mm; }
+            table { border-collapse: collapse; width: 100%; }
+            th, td { border: 1px solid #000 !important; padding: 4px !important; text-align: center; font-size: 10px !important; color: #000 !important;}
+            th { background-color: #f3f4f6 !important; -webkit-print-color-adjust: exact; font-weight: bold; }
+        }
+      `}</style>
+
+      <header className="bg-white border-b px-6 py-4 flex justify-between sticky top-0 z-20 shadow-sm print-hide">
         <div className="flex items-center gap-3"><Avatar><AvatarImage src={user.passport_url} /><AvatarFallback>HT</AvatarFallback></Avatar><div><h1 className="font-bold">{user.full_name}</h1><p className="text-xs text-slate-500">Head Teacher</p></div></div>
         <Button variant="destructive" size="sm" onClick={() => navigate('/login')}><LogOut className="w-4 h-4 mr-2"/> Logout</Button>
       </header>
 
       <main className="p-4 md:p-6 container mx-auto max-w-6xl">
         <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="flex flex-wrap h-auto p-1 bg-slate-200/50 justify-start">
+            <TabsList className="flex flex-wrap h-auto p-1 bg-slate-200/50 justify-start print-hide">
                 <TabsTrigger value="overview"><School className="w-4 h-4 mr-2"/> Overview</TabsTrigger>
                 <TabsTrigger value="registration"><Plus className="w-4 h-4 mr-2"/> Register</TabsTrigger>
                 <TabsTrigger value="approvals" className="relative"><FileCheck className="w-4 h-4 mr-2"/> Pending {pendingBatches.length > 0 && <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] w-5 h-5 flex items-center justify-center rounded-full animate-pulse">{pendingBatches.length}</span>}</TabsTrigger>
@@ -211,68 +221,30 @@ const HeadTeacherDashboard = () => {
                 <TabsTrigger value="settings"><Settings className="w-4 h-4 mr-2"/> Settings</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="overview"><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><Card className="bg-green-900 text-white"><CardHeader><CardTitle className="opacity-80 text-sm">Total Primary Pupils</CardTitle></CardHeader><CardContent className="text-4xl font-bold">{primaryStats.students}</CardContent></Card><Card className="bg-white text-slate-900 border-l-4 border-l-gold shadow-sm"><CardHeader><CardTitle className="opacity-80 text-sm">Total Assigned Staff</CardTitle></CardHeader><CardContent className="text-4xl font-bold">{primaryStats.staff}</CardContent></Card></div></TabsContent>
+            <TabsContent value="overview" className="print-hide"><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><Card className="bg-green-900 text-white"><CardHeader><CardTitle className="opacity-80 text-sm">Total Primary Pupils</CardTitle></CardHeader><CardContent className="text-4xl font-bold">{primaryStats.students}</CardContent></Card><Card className="bg-white text-slate-900 border-l-4 border-l-gold shadow-sm"><CardHeader><CardTitle className="opacity-80 text-sm">Total Assigned Staff</CardTitle></CardHeader><CardContent className="text-4xl font-bold">{primaryStats.staff}</CardContent></Card></div></TabsContent>
 
             {/* --- REGISTRATION TAB --- */}
-            <TabsContent value="registration">
+            <TabsContent value="registration" className="print-hide">
                 <Tabs defaultValue="student" className="w-full max-w-4xl mx-auto">
                     <TabsList className="w-full h-auto flex flex-col md:grid md:grid-cols-2 gap-2 mb-6 bg-transparent">
                         <TabsTrigger value="student" className="w-full border py-3 data-[state=active]:bg-green-900 data-[state=active]:text-white">Register Pupil</TabsTrigger>
                         <TabsTrigger value="staff" className="w-full border py-3 data-[state=active]:bg-slate-900 data-[state=active]:text-white">Register Staff</TabsTrigger>
                     </TabsList>
-                    <TabsContent value="student">
-                        <Card><CardHeader><CardTitle>Admission</CardTitle></CardHeader><CardContent className="space-y-4">
-                            <Input placeholder="Full Name" value={newStudent.name} onChange={e => setNewStudent({...newStudent, name: e.target.value})} />
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <Select onValueChange={v => setNewStudent({...newStudent, classId: v})}><SelectTrigger><SelectValue placeholder="Select Primary Class" /></SelectTrigger><SelectContent>{primaryClasses.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select>
-                                <Select onValueChange={v => setNewStudent({...newStudent, gender: v})} defaultValue="Male"><SelectTrigger><SelectValue placeholder="Gender" /></SelectTrigger><SelectContent><SelectItem value="Male">Male</SelectItem><SelectItem value="Female">Female</SelectItem></SelectContent></Select>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div><Label className="text-xs text-gray-500 mb-1 block">Parent Phone</Label><Input value={newStudent.parentPhone} onChange={e => setNewStudent({...newStudent, parentPhone: e.target.value})} /></div>
-                                <div><Label className="text-xs text-gray-500 mb-1 block">Date of Birth</Label><Input type="date" value={newStudent.dob} onChange={e => setNewStudent({...newStudent, dob: e.target.value})} /></div>
-                            </div>
-                            <Button onClick={handleRegisterStudent} disabled={loading} className="w-full bg-green-900 text-white hover:bg-green-800 py-6 mt-4">{loading ? <Loader2 className="animate-spin" /> : "Admit Pupil"}</Button>
-                        </CardContent></Card>
-                    </TabsContent>
-                    <TabsContent value="staff">
-                        <Card><CardHeader><CardTitle>Staff Onboarding</CardTitle></CardHeader><CardContent className="space-y-4">
-                            <Input placeholder="Full Name" value={newStaff.name} onChange={e => handleNameChange(e.target.value)} />
-                            <div className="grid grid-cols-2 gap-4">
-                                <Select onValueChange={handleRoleChange} value={newStaff.role}><SelectTrigger><SelectValue placeholder="Role" /></SelectTrigger><SelectContent><SelectItem value="teacher">Teacher</SelectItem></SelectContent></Select>
-                                <Select onValueChange={v => setNewStaff({...newStaff, section: v})} value={newStaff.section}><SelectTrigger><SelectValue placeholder="Section" /></SelectTrigger><SelectContent><SelectItem value="primary">Primary</SelectItem><SelectItem value="nursery">Nursery</SelectItem></SelectContent></Select>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div><Label className="text-xs text-gray-500 mb-1 block">Email (Auto)</Label><Input value={newStaff.email} readOnly /></div>
-                                <div><Label className="text-xs text-gray-500 mb-1 block">Password</Label><div className="relative"><Input type={showPassword ? "text" : "password"} value={newStaff.password} onChange={e => setNewStaff({...newStaff, password: e.target.value})}/><button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-3">{showPassword ? <EyeOff className="w-4 h-4"/> : <Eye className="w-4 h-4"/>}</button></div></div>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div><Label className="text-xs text-gray-500 mb-1 block">Phone Number</Label><Input value={newStaff.phone} onChange={e => setNewStaff({...newStaff, phone: e.target.value})} /></div>
-                                <div><Label className="text-xs text-gray-500 mb-1 block">Assign Class Teacher</Label><Select onValueChange={v => setNewStaff({...newStaff, assignedClass: v})} value={newStaff.assignedClass}><SelectTrigger><SelectValue placeholder="None" /></SelectTrigger><SelectContent><SelectItem value="unassigned">None</SelectItem>{primaryClasses.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select></div>
-                            </div>
-                            <Button onClick={handleRegisterStaff} disabled={loading} className="w-full py-6 mt-4 bg-slate-900">Create Account</Button>
-                        </CardContent></Card>
-                    </TabsContent>
+                    <TabsContent value="student"><Card><CardHeader><CardTitle>Admission</CardTitle></CardHeader><CardContent className="space-y-4"><Input placeholder="Full Name" value={newStudent.name} onChange={e => setNewStudent({...newStudent, name: e.target.value})} /><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><Select onValueChange={v => setNewStudent({...newStudent, classId: v})}><SelectTrigger><SelectValue placeholder="Select Primary Class" /></SelectTrigger><SelectContent>{primaryClasses.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select><Select onValueChange={v => setNewStudent({...newStudent, gender: v})} defaultValue="Male"><SelectTrigger><SelectValue placeholder="Gender" /></SelectTrigger><SelectContent><SelectItem value="Male">Male</SelectItem><SelectItem value="Female">Female</SelectItem></SelectContent></Select></div><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div><Label className="text-xs text-gray-500 mb-1 block">Parent Phone</Label><Input value={newStudent.parentPhone} onChange={e => setNewStudent({...newStudent, parentPhone: e.target.value})} /></div><div><Label className="text-xs text-gray-500 mb-1 block">Date of Birth</Label><Input type="date" value={newStudent.dob} onChange={e => setNewStudent({...newStudent, dob: e.target.value})} /></div></div><Button onClick={handleRegisterStudent} disabled={loading} className="w-full bg-green-900 text-white hover:bg-green-800 py-6 mt-4">{loading ? <Loader2 className="animate-spin" /> : "Admit Pupil"}</Button></CardContent></Card></TabsContent>
+                    <TabsContent value="staff"><Card><CardHeader><CardTitle>Staff Onboarding</CardTitle></CardHeader><CardContent className="space-y-4"><Input placeholder="Full Name" value={newStaff.name} onChange={e => handleNameChange(e.target.value)} /><div className="grid grid-cols-2 gap-4"><Select onValueChange={handleRoleChange} value={newStaff.role}><SelectTrigger><SelectValue placeholder="Role" /></SelectTrigger><SelectContent><SelectItem value="teacher">Teacher</SelectItem></SelectContent></Select><Select onValueChange={v => setNewStaff({...newStaff, section: v})} value={newStaff.section}><SelectTrigger><SelectValue placeholder="Section" /></SelectTrigger><SelectContent><SelectItem value="primary">Primary</SelectItem><SelectItem value="nursery">Nursery</SelectItem></SelectContent></Select></div><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div><Label className="text-xs text-gray-500 mb-1 block">Email (Auto)</Label><Input value={newStaff.email} readOnly /></div><div><Label className="text-xs text-gray-500 mb-1 block">Password</Label><div className="relative"><Input type={showPassword ? "text" : "password"} value={newStaff.password} onChange={e => setNewStaff({...newStaff, password: e.target.value})}/><button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-3">{showPassword ? <EyeOff className="w-4 h-4"/> : <Eye className="w-4 h-4"/>}</button></div></div></div><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div><Label className="text-xs text-gray-500 mb-1 block">Phone Number</Label><Input value={newStaff.phone} onChange={e => setNewStaff({...newStaff, phone: e.target.value})} /></div><div><Label className="text-xs text-gray-500 mb-1 block">Assign Class Teacher</Label><Select onValueChange={v => setNewStaff({...newStaff, assignedClass: v})} value={newStaff.assignedClass}><SelectTrigger><SelectValue placeholder="None" /></SelectTrigger><SelectContent><SelectItem value="unassigned">None</SelectItem>{primaryClasses.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select></div></div><Button onClick={handleRegisterStaff} disabled={loading} className="w-full py-6 mt-4 bg-slate-900">Create Account</Button></CardContent></Card></TabsContent>
                 </Tabs>
             </TabsContent>
 
             {/* --- SETTINGS TAB --- */}
-            <TabsContent value="settings">
-                <Card className="max-w-xl mx-auto border-t-4 border-t-green-900">
-                    <CardHeader><CardTitle>Global School Settings</CardTitle><CardDescription>Update this to control the active Term and Broadsheets.</CardDescription></CardHeader>
-                    <CardContent className="space-y-6">
-                        <div><Label>Current Session (e.g. 2025/2026)</Label><Input value={schoolSettings.current_session} onChange={(e) => setSchoolSettings({...schoolSettings, current_session: e.target.value})} className="font-mono text-lg" /></div>
-                        <div><Label>Current Term</Label><Select value={schoolSettings.current_term} onValueChange={(v) => setSchoolSettings({...schoolSettings, current_term: v})}><SelectTrigger className="font-mono text-lg"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="1st Term">1st Term</SelectItem><SelectItem value="2nd Term">2nd Term</SelectItem><SelectItem value="3rd Term">3rd Term</SelectItem></SelectContent></Select></div>
-                        <Button onClick={handleUpdateSettings} disabled={loading} className="w-full bg-green-900 text-white font-bold">{loading ? <Loader2 className="animate-spin" /> : "Save Changes"}</Button>
-                    </CardContent>
-                </Card>
+            <TabsContent value="settings" className="print-hide">
+                <Card className="max-w-xl mx-auto border-t-4 border-t-green-900"><CardHeader><CardTitle>Global School Settings</CardTitle><CardDescription>Update this to control the active Term and Broadsheets.</CardDescription></CardHeader><CardContent className="space-y-6"><div><Label>Current Session (e.g. 2025/2026)</Label><Input value={schoolSettings.current_session} onChange={(e) => setSchoolSettings({...schoolSettings, current_session: e.target.value})} className="font-mono text-lg" /></div><div><Label>Current Term</Label><Select value={schoolSettings.current_term} onValueChange={(v) => setSchoolSettings({...schoolSettings, current_term: v})}><SelectTrigger className="font-mono text-lg"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="1st Term">1st Term</SelectItem><SelectItem value="2nd Term">2nd Term</SelectItem><SelectItem value="3rd Term">3rd Term</SelectItem></SelectContent></Select></div><Button onClick={handleUpdateSettings} disabled={loading} className="w-full bg-green-900 text-white font-bold">{loading ? <Loader2 className="animate-spin" /> : "Save Changes"}</Button></CardContent></Card>
             </TabsContent>
 
-            {/* PENDING / APPROVED / MODAL */}
-            <TabsContent value="approvals"><div className="flex justify-between items-center mb-6"><h2 className="text-2xl font-bold font-serif text-green-900">Pending Approvals</h2></div>{pendingBatches.length === 0 ? <div className="text-center py-16 text-gray-400 bg-white rounded-xl border border-dashed">No pending results.</div> : <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">{pendingBatches.map(b => <BatchCard key={b.id} batch={b} isApproved={false}/>)}</div>}</TabsContent>
-            <TabsContent value="approved"><div className="flex justify-between items-center mb-6"><h2 className="text-2xl font-bold font-serif text-green-900">Approved Results</h2>{approvedBatches.length > 0 && <Button variant="destructive" onClick={handleDeleteAllApproved}><ArchiveX className="w-4 h-4 mr-2"/> Clear All</Button>}</div>{approvedBatches.length === 0 ? <div className="text-center py-16 text-gray-400 bg-white rounded-xl border border-dashed">No approved results.</div> : <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">{approvedBatches.map(b => <BatchCard key={b.id} batch={b} isApproved={true}/>)}</div>}</TabsContent>
+            <TabsContent value="approvals" className="print-hide"><div className="flex justify-between items-center mb-6"><h2 className="text-2xl font-bold font-serif text-green-900">Pending Approvals</h2></div>{pendingBatches.length === 0 ? <div className="text-center py-16 text-gray-400 bg-white rounded-xl border border-dashed">No pending results.</div> : <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">{pendingBatches.map(b => <BatchCard key={b.id} batch={b} isApproved={false}/>)}</div>}</TabsContent>
+            <TabsContent value="approved" className="print-hide"><div className="flex justify-between items-center mb-6"><h2 className="text-2xl font-bold font-serif text-green-900">Approved Results</h2>{approvedBatches.length > 0 && <Button variant="destructive" onClick={handleDeleteAllApproved}><ArchiveX className="w-4 h-4 mr-2"/> Clear All</Button>}</div>{approvedBatches.length === 0 ? <div className="text-center py-16 text-gray-400 bg-white rounded-xl border border-dashed">No approved results.</div> : <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">{approvedBatches.map(b => <BatchCard key={b.id} batch={b} isApproved={true}/>)}</div>}</TabsContent>
 
             <Dialog open={!!selectedBatch} onOpenChange={(o) => !o && setSelectedBatch(null)}>
-                <DialogContent className="max-w-4xl p-0 overflow-hidden bg-white rounded-xl border-none">
+                <DialogContent className="max-w-4xl p-0 overflow-hidden bg-white rounded-xl border-none print-hide">
                     <DialogHeader className="bg-green-900 text-white p-6 pb-8"><DialogTitle className="text-2xl font-serif">{selectedBatch?.class_name} - {selectedBatch?.subject_name}</DialogTitle><p className="text-green-200 text-sm mt-1">{selectedBatch?.records.length} Students | {selectedBatch?.term}</p></DialogHeader>
                     <div className="p-6 max-h-[50vh] overflow-y-auto">
                         <Table><TableHeader><TableRow className="bg-slate-50 border-none"><TableHead>Student Name</TableHead><TableHead className="text-center">CA</TableHead><TableHead className="text-center">Exam</TableHead><TableHead className="text-center">Total</TableHead><TableHead className="text-center">Grade</TableHead></TableRow></TableHeader><TableBody>{selectedBatch?.records.map((r: any) => (<TableRow key={r.id}><TableCell className="font-medium text-slate-800">{r.student?.full_name}</TableCell><TableCell className="text-center">{r.ca_score}</TableCell><TableCell className="text-center">{r.exam_score}</TableCell><TableCell className="text-center font-bold text-green-900">{r.total_score || (r.ca_score + r.exam_score)}</TableCell><TableCell className={`text-center font-bold ${r.grade === 'F' ? 'text-red-500' : 'text-green-600'}`}>{r.grade}</TableCell></TableRow>))}</TableBody></Table>
@@ -284,9 +256,70 @@ const HeadTeacherDashboard = () => {
                 </DialogContent>
             </Dialog>
 
-            <TabsContent value="broadsheet"><Card><CardHeader><CardTitle className="flex items-center gap-2"><FileSpreadsheet className="text-green-900"/> Primary Broadsheet</CardTitle></CardHeader><CardContent><div className="bg-green-50 border border-green-100 p-4 rounded-lg mb-6 flex flex-col md:flex-row gap-4 items-center justify-between"><div><p className="text-sm font-bold text-green-900 uppercase">Current Term Output</p><p className="text-xs text-green-700">{schoolSettings.current_term} - {schoolSettings.current_session}</p></div><div className="flex gap-4 w-full md:w-auto"><Select value={broadsheetClass} onValueChange={setBroadsheetClass}><SelectTrigger className="w-full md:w-[250px] bg-white"><SelectValue placeholder="Select Class to Preview"/></SelectTrigger><SelectContent>{primaryClasses.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select><Button onClick={downloadBroadsheet} disabled={!broadsheetData || loading} className="bg-green-900 text-white hover:bg-green-800 whitespace-nowrap">{loading ? <Loader2 className="animate-spin"/> : "Download CSV"}</Button></div></div>{loading ? <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-green-900"/></div> : broadsheetData ? <div className="rounded-md border overflow-x-auto max-h-[500px]"><Table><TableHeader><TableRow className="bg-green-50 sticky top-0 z-10">{broadsheetData.headers.map((h, i) => <TableHead key={i} className="whitespace-nowrap font-bold text-green-900 border-r">{h}</TableHead>)}</TableRow></TableHeader><TableBody>{broadsheetData.rows.map((row, i) => <TableRow key={i} className="hover:bg-slate-50">{broadsheetData.headers.map((h, j) => <TableCell key={j} className="whitespace-nowrap border-r text-center first:text-left">{row[h]}</TableCell>)}</TableRow>)}</TableBody></Table></div> : <div className="text-center py-12 text-gray-400 bg-slate-50 border rounded-lg border-dashed">Select a class to preview.</div>}</CardContent></Card></TabsContent>
-            <TabsContent value="pupils"><Card><CardHeader><CardTitle>Pupil Directory</CardTitle></CardHeader><CardContent><div className="flex flex-col md:flex-row gap-4 mb-4"><Input placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="md:w-1/3"/><Select value={classFilter} onValueChange={setClassFilter}><SelectTrigger className="md:w-1/4"><SelectValue placeholder="Filter by Class" /></SelectTrigger><SelectContent><SelectItem value="all">All Classes</SelectItem>{primaryClasses.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select></div><div className="rounded-md border h-[500px] overflow-auto"><Table><TableHeader><TableRow><TableHead>Pupil</TableHead><TableHead>Class</TableHead><TableHead>Portal Access</TableHead></TableRow></TableHeader><TableBody>{filteredPupils.map(s => (<TableRow key={s.id}><TableCell className="font-medium"><div className="flex items-center gap-2"><Avatar className="w-8 h-8"><AvatarImage src={s.passport_url}/><AvatarFallback>{s.full_name[0]}</AvatarFallback></Avatar><div><div>{s.full_name}</div><div className="text-xs text-gray-500">{s.admission_number}</div></div></div></TableCell><TableCell><Badge variant="outline">{s.class?.name}</Badge></TableCell><TableCell><Switch checked={s.is_active} onCheckedChange={() => toggleStudentStatus(s.id, s.is_active)} /></TableCell></TableRow>))}</TableBody></Table></div></CardContent></Card></TabsContent>
-            <TabsContent value="staff"><Card><CardHeader><CardTitle>Primary Staff Room</CardTitle></CardHeader><CardContent><div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">{staff.map(s => (<div key={s.id} className="flex items-center gap-4 p-4 border rounded-lg bg-white shadow-sm"><Avatar className="h-12 w-12"><AvatarImage src={s.passport_url} /><AvatarFallback>{s.full_name[0]}</AvatarFallback></Avatar><div className="overflow-hidden"><div className="font-bold truncate">{s.full_name}</div><div className="text-xs text-gray-500 capitalize mb-1">{s.role.replace('_', ' ')}</div>{s.class_teacher_of && <Badge className="text-[10px] bg-purple-100 text-purple-700 hover:bg-purple-100">Class: {s.class_teacher_of.name}</Badge>}</div></div>))}</div></CardContent></Card></TabsContent>
+            {/* --- ENHANCED BROADSHEET TAB --- */}
+            <TabsContent value="broadsheet">
+                <Card className="print-hide border-none shadow-none md:border-solid md:shadow-sm">
+                    <CardHeader className="print-hide">
+                        <CardTitle className="flex items-center gap-2"><FileSpreadsheet className="text-green-900"/> Primary Broadsheet</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="bg-green-50 border border-green-100 p-4 rounded-lg mb-6 flex flex-col md:flex-row gap-4 items-center justify-between print-hide">
+                            <div><p className="text-sm font-bold text-green-900 uppercase">Current Term Output</p><p className="text-xs text-green-700">{schoolSettings.current_term} - {schoolSettings.current_session}</p></div>
+                            <div className="flex gap-4 w-full md:w-auto">
+                                <Select value={broadsheetClass} onValueChange={setBroadsheetClass}><SelectTrigger className="w-full md:w-[250px] bg-white"><SelectValue placeholder="Select Class to Preview"/></SelectTrigger><SelectContent>{primaryClasses.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select>
+                                <Button onClick={() => window.print()} disabled={!broadsheetData || loading} variant="outline" className="border-green-900 text-green-900 hover:bg-green-50"><Printer className="w-4 h-4 mr-2"/> Print / Save PDF</Button>
+                                <Button onClick={downloadBroadsheet} disabled={!broadsheetData || loading} className="bg-green-900 text-white hover:bg-green-800 whitespace-nowrap">{loading ? <Loader2 className="animate-spin"/> : "Download CSV"}</Button>
+                            </div>
+                        </div>
+                        
+                        {loading ? (
+                            <div className="flex justify-center py-12 print-hide"><Loader2 className="w-8 h-8 animate-spin text-green-900"/></div>
+                        ) : broadsheetData ? (
+                            <div id="printable-broadsheet" className="bg-white p-2 md:p-8 rounded-lg">
+                                {/* Print Header - Visually appealing for the PDF */}
+                                <div className="text-center mb-6 hidden print:block border-b-2 border-black pb-4">
+                                    <h1 className="text-2xl font-bold font-serif text-green-900 tracking-wider">AL-MUSTAPHA MODEL COLLEGE</h1>
+                                    <p className="text-[12px] font-medium text-gray-800">1, Ajao Mustapha Street Idi-Emi, Ogidi Area Ilorin, Kwara State.</p>
+                                    <div className="mt-4 flex justify-between items-end">
+                                        <div className="text-left">
+                                            <p className="text-sm font-bold uppercase underline">MASTER BROADSHEET</p>
+                                            <p className="text-xs mt-1">CLASS: <span className="font-bold">{primaryClasses.find(c => c.id === broadsheetClass)?.name}</span></p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-xs font-bold">{schoolSettings.current_term.toUpperCase()}</p>
+                                            <p className="text-xs">{schoolSettings.current_session} Session</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="overflow-x-auto w-full">
+                                    <Table className="w-full text-[10px] md:text-sm">
+                                        <TableHeader>
+                                            <TableRow className="bg-green-50 print:bg-gray-100">
+                                                {broadsheetData.headers.map((h, i) => <TableHead key={i} className="whitespace-nowrap font-bold text-green-900 print:text-black border print:border-black p-2">{h}</TableHead>)}
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {broadsheetData.rows.map((row, i) => (
+                                                <TableRow key={i} className="hover:bg-slate-50">
+                                                    {broadsheetData.headers.map((h, j) => (
+                                                        <TableCell key={j} className="whitespace-nowrap border print:border-black p-2 text-center first:text-left">{row[h]}</TableCell>
+                                                    ))}
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="text-center py-12 text-gray-400 bg-slate-50 border rounded-lg border-dashed print-hide">Select a class to preview.</div>
+                        )}
+                    </CardContent>
+                </Card>
+            </TabsContent>
+
+            <TabsContent value="pupils" className="print-hide"><Card><CardHeader><CardTitle>Pupil Directory</CardTitle></CardHeader><CardContent><div className="flex flex-col md:flex-row gap-4 mb-4"><Input placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="md:w-1/3"/><Select value={classFilter} onValueChange={setClassFilter}><SelectTrigger className="md:w-1/4"><SelectValue placeholder="Filter by Class" /></SelectTrigger><SelectContent><SelectItem value="all">All Classes</SelectItem>{primaryClasses.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select></div><div className="rounded-md border h-[500px] overflow-auto"><Table><TableHeader><TableRow><TableHead>Pupil</TableHead><TableHead>Class</TableHead><TableHead>Portal Access</TableHead></TableRow></TableHeader><TableBody>{filteredPupils.map(s => (<TableRow key={s.id}><TableCell className="font-medium"><div className="flex items-center gap-2"><Avatar className="w-8 h-8"><AvatarImage src={s.passport_url}/><AvatarFallback>{s.full_name[0]}</AvatarFallback></Avatar><div><div>{s.full_name}</div><div className="text-xs text-gray-500">{s.admission_number}</div></div></div></TableCell><TableCell><Badge variant="outline">{s.class?.name}</Badge></TableCell><TableCell><Switch checked={s.is_active} onCheckedChange={() => toggleStudentStatus(s.id, s.is_active)} /></TableCell></TableRow>))}</TableBody></Table></div></CardContent></Card></TabsContent>
+            <TabsContent value="staff" className="print-hide"><Card><CardHeader><CardTitle>Primary Staff Room</CardTitle></CardHeader><CardContent><div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">{staff.map(s => (<div key={s.id} className="flex items-center gap-4 p-4 border rounded-lg bg-white shadow-sm"><Avatar className="h-12 w-12"><AvatarImage src={s.passport_url} /><AvatarFallback>{s.full_name[0]}</AvatarFallback></Avatar><div className="overflow-hidden"><div className="font-bold truncate">{s.full_name}</div><div className="text-xs text-gray-500 capitalize mb-1">{s.role.replace('_', ' ')}</div>{s.class_teacher_of && <Badge className="text-[10px] bg-purple-100 text-purple-700 hover:bg-purple-100">Class: {s.class_teacher_of.name}</Badge>}</div></div>))}</div></CardContent></Card></TabsContent>
         </Tabs>
       </main>
     </div>
