@@ -31,6 +31,7 @@ const PrincipalDashboard = () => {
   const [pendingBatches, setPendingBatches] = useState<any[]>([]);
   const [approvedBatches, setApprovedBatches] = useState<any[]>([]);
   const [selectedBatch, setSelectedBatch] = useState<any>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState(false); // Controls the beautiful inline delete confirmation
 
   const [broadsheetClass, setBroadsheetClass] = useState("");
   const [broadsheetData, setBroadsheetData] = useState<{headers: string[], rows: any[]}|null>(null);
@@ -123,10 +124,9 @@ const PrincipalDashboard = () => {
   };
 
   const handleDeleteBatch = async (batch: any, isApproved: boolean) => {
-      if(!confirm(`Delete this ${isApproved ? 'approved' : 'pending'} batch?`)) return;
       setLoading(true); const recordIds = batch.records.map((r: any) => r.id);
       await supabase.from('academic_results').delete().in('id', recordIds);
-      setLoading(false); toast({ title: "Batch Deleted" }); setSelectedBatch(null); loadData(); if(broadsheetClass) generateBroadsheetPreview(); 
+      setLoading(false); toast({ title: "Batch Deleted" }); setSelectedBatch(null); setDeleteConfirm(false); loadData(); if(broadsheetClass) generateBroadsheetPreview(); 
   };
 
   const handleDeleteAllApproved = async () => {
@@ -197,7 +197,6 @@ const PrincipalDashboard = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans pb-20">
-      {/* CSS For Printing the Broadsheet neatly in Landscape */}
       <style>{`
         @media print {
             body * { visibility: hidden; }
@@ -231,7 +230,6 @@ const PrincipalDashboard = () => {
 
             <TabsContent value="overview" className="print-hide"><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><Card className="bg-[#1e3a8a] text-white"><CardHeader><CardTitle className="opacity-80 text-sm">Total Secondary Students</CardTitle></CardHeader><CardContent className="text-4xl font-bold">{stats.students}</CardContent></Card><Card className="bg-white text-slate-900 border-l-4 border-l-gold shadow-sm"><CardHeader><CardTitle className="opacity-80 text-sm">Total Assigned Staff</CardTitle></CardHeader><CardContent className="text-4xl font-bold">{stats.staff}</CardContent></Card></div></TabsContent>
 
-            {/* --- REGISTRATION TAB --- */}
             <TabsContent value="registration" className="print-hide">
                 <Tabs defaultValue="student" className="w-full max-w-4xl mx-auto">
                     <TabsList className="w-full h-auto flex flex-col md:grid md:grid-cols-2 gap-2 mb-6 bg-transparent">
@@ -248,20 +246,38 @@ const PrincipalDashboard = () => {
             <TabsContent value="approvals" className="print-hide"><div className="flex justify-between items-center mb-6"><h2 className="text-2xl font-bold font-serif text-blue-950">Pending Approvals</h2></div>{pendingBatches.length === 0 ? <div className="text-center py-16 text-gray-400 bg-white rounded-xl border border-dashed">No pending results.</div> : <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">{pendingBatches.map(b => <BatchCard key={b.id} batch={b} isApproved={false}/>)}</div>}</TabsContent>
             <TabsContent value="approved" className="print-hide"><div className="flex justify-between items-center mb-6"><h2 className="text-2xl font-bold font-serif text-green-900">Approved Results</h2>{approvedBatches.length > 0 && <Button variant="destructive" onClick={handleDeleteAllApproved}><ArchiveX className="w-4 h-4 mr-2"/> Clear All</Button>}</div>{approvedBatches.length === 0 ? <div className="text-center py-16 text-gray-400 bg-white rounded-xl border border-dashed">No approved results.</div> : <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">{approvedBatches.map(b => <BatchCard key={b.id} batch={b} isApproved={true}/>)}</div>}</TabsContent>
 
-            <Dialog open={!!selectedBatch} onOpenChange={(o) => !o && setSelectedBatch(null)}>
+            <Dialog open={!!selectedBatch} onOpenChange={(o) => { if(!o) { setSelectedBatch(null); setDeleteConfirm(false); } }}>
                 <DialogContent className="max-w-4xl p-0 overflow-hidden bg-white rounded-xl border-none print-hide">
                     <DialogHeader className="bg-[#1e3a8a] text-white p-6 pb-8"><DialogTitle className="text-2xl font-serif">{selectedBatch?.class_name} - {selectedBatch?.subject_name}</DialogTitle><p className="text-blue-200 text-sm mt-1">{selectedBatch?.records.length} Students | {selectedBatch?.term}</p></DialogHeader>
                     <div className="p-6 max-h-[50vh] overflow-y-auto">
                         <Table><TableHeader><TableRow className="bg-slate-50 border-none"><TableHead>Student Name</TableHead><TableHead className="text-center">CA</TableHead><TableHead className="text-center">Exam</TableHead><TableHead className="text-center">Total</TableHead><TableHead className="text-center">Grade</TableHead></TableRow></TableHeader><TableBody>{selectedBatch?.records.map((r: any) => (<TableRow key={r.id}><TableCell className="font-medium text-slate-800">{r.student?.full_name}</TableCell><TableCell className="text-center">{r.ca_score}</TableCell><TableCell className="text-center">{r.exam_score}</TableCell><TableCell className="text-center font-bold text-[#1e3a8a]">{r.total_score || (r.ca_score + r.exam_score)}</TableCell><TableCell className={`text-center font-bold ${r.grade === 'F' ? 'text-red-500' : 'text-green-600'}`}>{r.grade}</TableCell></TableRow>))}</TableBody></Table>
                         <div className="mt-8 text-right border-t pt-4"><p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Uploaded By</p><p className="font-bold text-[#1e3a8a] text-lg font-serif">{selectedBatch?.uploaded_by}</p></div>
                     </div>
+
+                    {/* BEAUTIFUL INLINE CONFIRMATION UI REPLACES THE UGLY BROWSER ALERT */}
                     <div className="p-6 bg-slate-50 border-t flex justify-end gap-4">
-                        {!selectedBatch?.records[0]?.is_approved ? ( <><Button onClick={() => handleDeleteBatch(selectedBatch, false)} variant="outline" className="text-red-600">Reject Batch</Button><Button onClick={() => handleApproveBatch(selectedBatch)} className="bg-[#1e3a8a]">Approve Batch</Button></> ) : ( <Button onClick={() => handleDeleteBatch(selectedBatch, true)} variant="destructive"><Trash2 className="w-4 h-4 mr-2"/> Delete Approved Batch</Button> )}
+                        {deleteConfirm ? (
+                            <div className="flex items-center justify-between w-full animate-in fade-in zoom-in duration-200">
+                                <span className="text-red-600 font-bold text-sm">Are you sure? This cannot be undone.</span>
+                                <div className="flex gap-2">
+                                    <Button onClick={() => setDeleteConfirm(false)} variant="outline">Cancel</Button>
+                                    <Button onClick={() => handleDeleteBatch(selectedBatch, !!selectedBatch?.records[0]?.is_approved)} variant="destructive">Yes, Delete</Button>
+                                </div>
+                            </div>
+                        ) : (
+                            !selectedBatch?.records[0]?.is_approved ? ( 
+                                <>
+                                    <Button onClick={() => setDeleteConfirm(true)} variant="outline" className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700">Reject Batch</Button>
+                                    <Button onClick={() => handleApproveBatch(selectedBatch)} className="bg-[#1e3a8a] text-white hover:bg-blue-900">Approve Batch</Button>
+                                </> 
+                            ) : ( 
+                                <Button onClick={() => setDeleteConfirm(true)} variant="destructive"><Trash2 className="w-4 h-4 mr-2"/> Delete Approved Batch</Button> 
+                            )
+                        )}
                     </div>
                 </DialogContent>
             </Dialog>
 
-            {/* --- ENHANCED BROADSHEET TAB --- */}
             <TabsContent value="broadsheet">
                 <Card className="print-hide border-none shadow-none md:border-solid md:shadow-sm">
                     <CardHeader className="print-hide">
@@ -281,7 +297,6 @@ const PrincipalDashboard = () => {
                             <div className="flex justify-center py-12 print-hide"><Loader2 className="w-8 h-8 animate-spin text-blue-900"/></div>
                         ) : broadsheetData ? (
                             <div id="printable-broadsheet" className="bg-white p-2 md:p-8 rounded-lg">
-                                {/* Print Header - Visually appealing for the PDF */}
                                 <div className="text-center mb-6 hidden print:block border-b-2 border-black pb-4">
                                     <h1 className="text-2xl font-bold font-serif text-[#1e3a8a] tracking-wider">AL-MUSTAPHA MODEL COLLEGE</h1>
                                     <p className="text-[12px] font-medium text-gray-800">1, Ajao Mustapha Street Idi-Emi, Ogidi Area Ilorin, Kwara State.</p>
