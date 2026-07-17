@@ -42,16 +42,12 @@ const LandingPage = () => {
   const checkPatternStyle = {
     backgroundColor: '#020617', // Base: Very Dark Navy (slate-950)
     backgroundImage: `
-      /* 1. Thin Red Lines (Accents) - Top Layer */
       linear-gradient(90deg, transparent 49%, rgba(220, 38, 38, 0.8) 49%, rgba(220, 38, 38, 0.8) 50%, transparent 50%),
       linear-gradient(0deg, transparent 49%, rgba(220, 38, 38, 0.8) 49%, rgba(220, 38, 38, 0.8) 50%, transparent 50%),
       
-      /* 2. Thin White Lines (Offset Accents) - Middle Layer */
       linear-gradient(90deg, transparent 44%, rgba(255, 255, 255, 0.15) 44%, rgba(255, 255, 255, 0.15) 45%, transparent 45%),
       linear-gradient(0deg, transparent 44%, rgba(255, 255, 255, 0.15) 44%, rgba(255, 255, 255, 0.15) 45%, transparent 45%),
 
-      /* 3. Green Stripes (The Grid) - Bottom Layer */
-      /* Note: We use transparent gaps so the Navy background shows through most of the time */
       linear-gradient(90deg, transparent 15%, rgba(22, 163, 74, 0.4) 15%, rgba(22, 163, 74, 0.4) 35%, transparent 35%),
       linear-gradient(0deg, transparent 15%, rgba(22, 163, 74, 0.4) 15%, rgba(22, 163, 74, 0.4) 35%, transparent 35%)
     `,
@@ -70,10 +66,8 @@ const LandingPage = () => {
   ];
 
   return (
-    // Background: Cream (#FDFBF7) for the "Shirt" body
     <div className="min-h-screen font-sans bg-yellow-250/50 overflow-x-hidden selection:bg-blue-200">
       
-      {/* --- INJECTED CSS FOR SCROLLING ANIMATION --- */}
       <style>{`
         @keyframes scroll {
           0% { transform: translateX(0); }
@@ -87,10 +81,8 @@ const LandingPage = () => {
         }
       `}</style>
 
-      {/* --- NAVBAR --- */}
       <header className={`fixed w-full z-50 transition-all duration-300 ${scrolled ? 'shadow-xl py-0' : 'bg-yellow-200/25 py-4'}`}>
         <div className={`absolute inset-0 transition-opacity duration-300 ${scrolled ? 'opacity-100' : 'opacity-0'}`} style={checkPatternStyle}>
-            {/* Minimal overlay so the Navy pattern is clearly visible */}
             <div className="absolute inset-0 bg-slate-950/20" /> 
         </div>
 
@@ -100,7 +92,6 @@ const LandingPage = () => {
                 <img src={logo} alt="Al-Mustapha Logo" className="w-10 h-10 md:w-14 md:h-14 rounded-full" />
             </div>
             <div>
-                {/* Text switches to White on scroll, Navy on Cream background */}
                 <h1 className={`font-bold text-lg md:text-xl leading-tight ${scrolled ? 'text-white' : 'text-slate-950'}`}>Almustapha Model Schools</h1>
                 <p className={`text-[10px] font-bold uppercase tracking-widest ${scrolled ? 'text-yellow-200' : 'text-yellow-600'}`}>Knowledge is Light</p>
             </div>
@@ -111,7 +102,6 @@ const LandingPage = () => {
                  <button key={item} onClick={() => scrollToSection(item)} className={`text-sm font-bold uppercase tracking-wide hover:text-yellow-500 transition-colors ${scrolled ? 'text-gray-200' : 'text-blue-900'}`}>{item.replace('_', ' ')}</button>
             ))}
             
-            {/* Login Button with Navy Check Pattern */}
             <Button onClick={() => navigate('/login')} className="relative overflow-hidden border-2 border-yellow-500 font-bold text-white shadow-md group">
                 <div className="absolute inset-0" style={checkPatternStyle} />
                 <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors" />
@@ -138,11 +128,10 @@ const LandingPage = () => {
         )}
       </header>
 
-      {/* --- HERO SECTION --- */}
       <section id="hero" className="relative h-screen min-w-screen flex items-center justify-center text-center px-4">
-          <div className="absolute top-0 right-0 w-full h-full md:w-[600px] md:h-[600px] opacity-10 pointer-events-none z-0 flex items-center justify-center">
-            <img src={logo} className="w-full h-auto object-contain" />
-        </div>
+          <div className="absolute top-0 right-0 w-full h-full opacity-10 pointer-events-none z-0  flex items-center justify-center">
+            <img src={logo} className="w-full h-1/2 object-contain" />
+          </div>
   
         <div className="relative z-10 max-w-5xl space-y-8 animate-in fade-in zoom-in duration-700 mt-16">
             <div className="inline-block relative">
@@ -182,7 +171,7 @@ const LandingPage = () => {
       </section>
 
       {/* --- ABOUT SECTION --- */}
-      <section id="about" className="py-24 px-4 relative">
+      <section id="about" className="py-24 px-4 relative bg-blue-100/90">
         <div className="container mx-auto max-w-6xl grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
             {/* Image Frame with Check Pattern */}
             <div className="relative p-4 rounded-2xl shadow-2xl rotate-2 hover:rotate-0 transition-transform duration-500" style={checkPatternStyle}>
@@ -198,11 +187,11 @@ const LandingPage = () => {
                     </h2>
                     <h3 className="text-4xl font-bold text-slate-900 font-serif">A Legacy of Discipline & Knowledge.</h3>
                 </div>
-                <p className="text-slate-700 leading-relaxed text-lg">
+                <p className="text-slate-700 leading-relaxed text-lg" >
                     Established with a vision to provide holistic education, Al-Mustapha Model College stands as a pillar of learning in Ilorin. We don't just teach; we mold character. Our unique blend of modern curriculum and moral upbringing ensures every child is prepared for the future.
                 </p>
                 
-                <div className="grid  sm:grid-cols-2 pt-2">
+                <div className="grid  sm:grid pt-2">
                     <Card className="border-l-4 border-l-blue-800 shadow-md bg-white hover:shadow-lg transition-shadow"><CardContent className="p-6"><h4 className="font-bold text-lg text-slate-900 mb-1">Our Mission</h4>
                     <p className="text-md text-slate-600">
                        The mission of Almustapha Model Schools is to establish, operate and run an educational institution that caters for the total development of the child through love, service, integrity, patriotism and other enduring virtues and values to enhance the child's growth physically, intellectually, morally and spiritually. The product of Almustapha Model Schools must emerge as leader in whatever service they find themselves at every level in any walk of life.</p></CardContent></Card>
