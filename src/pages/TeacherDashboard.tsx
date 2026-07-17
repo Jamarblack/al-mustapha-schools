@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { LogOut, Save, FileText, Loader2, User, BookOpen, School, Upload } from "lucide-react";
+import { LogOut, Save, FileText, Loader2, User, BookOpen, School, Upload, Trash2 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 
@@ -33,6 +33,7 @@ const TeacherDashboard = () => {
   const [students, setStudents] = useState<any[]>([]);
   const [scores, setScores] = useState<Record<string, { test: string; mid: string; ass: string; exam: string }>>({});
   const [loading, setLoading] = useState(false);
+  const [clearConfirm, setClearConfirm] = useState(false); // Controls the inline clear confirmation
 
   const [myClassStudents, setMyClassStudents] = useState<any[]>([]);
   const [myClassDetails, setMyClassDetails] = useState<any>(null);
@@ -115,6 +116,7 @@ const TeacherDashboard = () => {
   const fetchClassList = async () => {
     if (!selectedClass) return;
     setLoading(true);
+    setClearConfirm(false); // Reset confirmation state on new load
     const { data: stud } = await supabase.from('students').select('*').eq('class_id', selectedClass).eq('is_active', true).order('full_name');
     setStudents(stud || []);
     if (selectedSubject && stud) {
@@ -135,7 +137,6 @@ const TeacherDashboard = () => {
     setScores(prev => ({ ...prev, [id]: { ...prev[id], [field]: val } }));
   };
 
-  // --- THIS IS THE FIX FOR THE TEACHER NAME ---
   const submitScores = async () => {
     if (!selectedSubject) { toast({variant: "destructive", title: "Select a Subject first"}); return; }
     setLoading(true);
@@ -150,7 +151,7 @@ const TeacherDashboard = () => {
             session: selectedSession, term: selectedTerm, 
             class_test: t1, mid_term_test: t2, assignment: t3, ca_score: totalCA, exam_score: ex, grade: grade, 
             is_approved: false,
-            uploaded_by_name: user.full_name // IT WILL NOW SEND THEIR ACTUAL NAME
+            uploaded_by_name: user.full_name
         };
     });
     
@@ -158,6 +159,35 @@ const TeacherDashboard = () => {
     setLoading(false);
     if (!error) toast({ title: "Saved", description: "Academic scores uploaded." });
     else toast({ variant: "destructive", title: "Error", description: error.message });
+  };
+
+  const handleClearScores = async () => {
+    if (!selectedSubject || !selectedClass) return;
+    setLoading(true);
+    
+    // Delete the scores from the database for this specific class, subject, session, and term
+    const { error } = await supabase
+      .from('academic_results')
+      .delete()
+      .eq('class_id', selectedClass)
+      .eq('subject_id', selectedSubject)
+      .eq('session', selectedSession)
+      .eq('term', selectedTerm);
+
+    setLoading(false);
+    setClearConfirm(false);
+
+    if (!error) {
+        toast({ title: "Cleared", description: "All scores for this sheet have been wiped." });
+        // Reset the local input fields on the screen
+        const emptyScores: any = {};
+        students.forEach(s => {
+            emptyScores[s.id] = { test: "", mid: "", ass: "", exam: "" };
+        });
+        setScores(emptyScores);
+    } else {
+        toast({ variant: "destructive", title: "Error", description: error.message });
+    }
   };
 
   const fetchMyClassStudents = async (classId: string) => {
@@ -190,9 +220,7 @@ const TeacherDashboard = () => {
         times_absent: reportData.absent, 
         form_master_remark: reportData.teacherRemark, 
         principal_remark: reportData.principalRemark, 
-        
         next_term_begins: reportData.nextTerm || null, 
-        
         psychomotor_skills: reportData.skills 
     };
     
@@ -264,7 +292,26 @@ const TeacherDashboard = () => {
                                         <TableBody>{students.map((s) => {const t1 = Number(scores[s.id]?.test || 0); const t2 = Number(scores[s.id]?.mid || 0); const t3 = Number(scores[s.id]?.ass || 0); const ex = Number(scores[s.id]?.exam || 0); const tot = t1 + t2 + t3 + ex; return (<TableRow key={s.id}><TableCell className="font-medium">{s.full_name}</TableCell><TableCell><Input type="number" max={10} className="w-16 h-8" value={scores[s.id]?.test || ''} onChange={e => handleScoreChange(s.id, 'test', e.target.value)} /></TableCell><TableCell><Input type="number" max={20} className="w-16 h-8" value={scores[s.id]?.mid || ''} onChange={e => handleScoreChange(s.id, 'mid', e.target.value)} /></TableCell><TableCell><Input type="number" max={10} className="w-16 h-8" value={scores[s.id]?.ass || ''} onChange={e => handleScoreChange(s.id, 'ass', e.target.value)} /></TableCell><TableCell><Input type="number" max={60} className="w-16 h-8" value={scores[s.id]?.exam || ''} onChange={e => handleScoreChange(s.id, 'exam', e.target.value)} /></TableCell><TableCell className={`font-bold text-lg ${tot >= 50 ? 'text-green-600' : 'text-red-500'}`}>{tot}</TableCell></TableRow>);})}</TableBody>
                                     </Table>
                                 </div>
-                                <div className="mt-4 flex justify-end"><Button onClick={submitScores} className="bg-green-600 hover:bg-green-700 w-48"><Save className="w-4 h-4 mr-2"/> Save All Results</Button></div>
+                                
+                                {/* UPDATED BUTTON AREA WITH INLINE CONFIRMATION */}
+                                <div className="mt-6 flex flex-col md:flex-row justify-end items-center gap-4">
+                                    {clearConfirm ? (
+                                        <div className="flex items-center gap-3 animate-in fade-in zoom-in duration-200 bg-red-50 p-2 rounded-lg border border-red-100 w-full md:w-auto justify-between">
+                                            <span className="text-red-600 font-bold text-sm ml-2">Clear all scores?</span>
+                                            <div className="flex gap-2">
+                                                <Button onClick={() => setClearConfirm(false)} variant="outline" size="sm" className="bg-white hover:bg-gray-100 text-gray-700 border-gray-200">Cancel</Button>
+                                                <Button onClick={handleClearScores} variant="destructive" size="sm" disabled={loading}>{loading ? <Loader2 className="w-4 h-4 animate-spin"/> : "Yes, WIPE"}</Button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <Button onClick={() => setClearConfirm(true)} variant="outline" className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700 w-full md:w-auto">
+                                            <Trash2 className="w-4 h-4 mr-2"/> Clear Sheet
+                                        </Button>
+                                    )}
+                                    <Button onClick={submitScores} disabled={loading} className="bg-green-600 hover:bg-green-700 w-full md:w-48">
+                                        {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin"/> : <Save className="w-4 h-4 mr-2"/>} Save All Results
+                                    </Button>
+                                </div>
                             </>
                         )}
                     </CardContent>
