@@ -79,7 +79,7 @@ const TeacherDashboard = () => {
       if (name.includes('KG')) return 'KG';
       if (name.includes('PRE-NURSERY') || name.includes('PRE NURSERY')) return 'Pre-Nursery';
       if (name === 'NURSERY 1') return 'Nursery';
-      if (name === 'NURSERY 2') return 'Nursery'; 
+      if (name === 'NURSERY 2') return 'Nursery 2'; 
       if (name === 'BASIC 1' || name === 'BASIC 2') return 'Lower Primary';
       if (name.includes('BASIC 3') || name.includes('BASIC 4') || name.includes('BASIC 5')) return 'Upper Primary';
       if (name.includes('JSS')) return 'JSS';
