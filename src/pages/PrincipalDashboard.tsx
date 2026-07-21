@@ -31,7 +31,7 @@ const PrincipalDashboard = () => {
   const [pendingBatches, setPendingBatches] = useState<any[]>([]);
   const [approvedBatches, setApprovedBatches] = useState<any[]>([]);
   const [selectedBatch, setSelectedBatch] = useState<any>(null);
-  const [deleteConfirm, setDeleteConfirm] = useState(false); // Controls the beautiful inline delete confirmation
+  const [deleteConfirm, setDeleteConfirm] = useState(false); 
 
   const [broadsheetClass, setBroadsheetClass] = useState("");
   const [broadsheetData, setBroadsheetData] = useState<{headers: string[], rows: any[]}|null>(null);

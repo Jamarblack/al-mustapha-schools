@@ -101,13 +101,18 @@ const HeadTeacherDashboard = () => {
     if (!error) { toast({ title: "Staff Created" }); loadData(); setNewStaff({ name: "", email: "", password: "", role: "", section: "primary", phone: "", assignedClass: "unassigned" }); }
   };
 
-  const fetchBatches = async (primaryClassIds: string[]) => {
-      const { data } = await supabase.from('academic_results').select('*, subject:subjects(name), class:classes(name), student:students(full_name)').in('class_id', primaryClassIds);
+ const fetchBatches = async (primaryClassIds: string[]) => {
+      const { data } = await supabase.from('academic_results').select('*, subject:subjects(name), class:classes(name), student:students(full_name)').in('class_id', primaryClassIds).limit(10000);
       if (!data) return;
       const pending: any = {}; const approved: any = {};
       data.forEach((r: any) => {
           const key = `${r.class_id}_${r.subject_id}_${r.session}_${r.term}`;
-          const batchObj = { id: key, class_name: r.class?.name, subject_name: r.subject?.name, session: r.session, term: r.term, uploaded_by: r.uploaded_by_name || 'Subject Teacher', records: [] };
+          const batchObj = { 
+              id: key, class_name: r.class?.name, subject_name: r.subject?.name, session: r.session, term: r.term, 
+              uploaded_by: r.uploaded_by_name || 'Subject Teacher', 
+              submitted_at: r.updated_at || r.created_at, // <-- Now grabs the new timestamp
+              records: [] 
+          };
           if(!r.is_approved) { if(!pending[key]) pending[key] = {...batchObj}; pending[key].records.push(r); } 
           else { if(!approved[key]) approved[key] = {...batchObj}; approved[key].records.push(r); }
       });
@@ -115,23 +120,38 @@ const HeadTeacherDashboard = () => {
   };
 
   const handleApproveBatch = async (batch: any) => {
-      setLoading(true); const recordIds = batch.records.map((r: any) => r.id);
+      setLoading(true); 
+      const recordIds = batch.records.map((r: any) => r.id);
       await supabase.from('academic_results').update({ is_approved: true }).in('id', recordIds);
-      setLoading(false); toast({ title: "Batch Approved" }); setSelectedBatch(null); loadData(); if(broadsheetClass) generateBroadsheetPreview();
+      setLoading(false); 
+      toast({ title: "Batch Approved" }); 
+      setSelectedBatch(null); 
+      loadData(); 
+      if(broadsheetClass) generateBroadsheetPreview();
   };
 
   const handleDeleteBatch = async (batch: any, isApproved: boolean) => {
-      if(!confirm(`Delete this ${isApproved ? 'approved' : 'pending'} batch?`)) return;
-      setLoading(true); const recordIds = batch.records.map((r: any) => r.id);
+      setLoading(true); 
+      const recordIds = batch.records.map((r: any) => r.id);
       await supabase.from('academic_results').delete().in('id', recordIds);
-      setLoading(false); toast({ title: "Batch Deleted" }); setSelectedBatch(null); loadData(); if(broadsheetClass) generateBroadsheetPreview();
+      
+      setLoading(false); 
+      toast({ title: "Batch Deleted" }); 
+      setSelectedBatch(null); 
+      setDeleteConfirm(false);
+      loadData(); 
+      if(broadsheetClass) generateBroadsheetPreview();
   };
 
   const handleDeleteAllApproved = async () => {
       if(!confirm("DANGER: Delete ALL approved primary results?")) return;
-      setLoading(true); const classIds = primaryClasses.map(c => c.id);
+      
+      setLoading(true); 
+      const classIds = primaryClasses.map(c => c.id);
       await supabase.from('academic_results').delete().eq('is_approved', true).in('class_id', classIds);
-      setLoading(false); toast({ title: "Cleared" }); loadData();
+      setLoading(false); 
+      toast({ title: "Cleared" }); 
+      loadData();
   };
 
   useEffect(() => { if (broadsheetClass) generateBroadsheetPreview(); else setBroadsheetData(null); }, [broadsheetClass, schoolSettings]);
@@ -172,7 +192,7 @@ const HeadTeacherDashboard = () => {
   if (!user) return null;
   const filteredPupils = pupils.filter(s => { const matchesClass = classFilter === 'all' || s.class_id === classFilter; const matchesSearch = s.full_name.toLowerCase().includes(searchQuery.toLowerCase()) || s.admission_number.toLowerCase().includes(searchQuery.toLowerCase()); return matchesClass && matchesSearch; });
 
-  const BatchCard = ({ batch, isApproved }: { batch: any, isApproved: boolean }) => (
+ const BatchCard = ({ batch, isApproved }: { batch: any, isApproved: boolean }) => (
         <Dialog>
             <DialogTrigger asChild>
                 <Card className="hover:shadow-lg transition-all cursor-pointer border hover:border-green-400 group" onClick={() => setSelectedBatch(batch)}>
@@ -180,7 +200,16 @@ const HeadTeacherDashboard = () => {
                         <div className="flex justify-between items-start mb-4"><div className={`p-3 rounded-xl transition-colors ${isApproved ? 'bg-green-50 text-green-600 group-hover:bg-green-600 group-hover:text-white' : 'bg-orange-50 text-orange-600 group-hover:bg-orange-600 group-hover:text-white'}`}><FileText className="w-6 h-6" /></div><Badge variant="outline" className={isApproved ? "bg-green-50 text-green-600 border-green-200" : "bg-orange-50 text-orange-600 border-orange-200"}>{isApproved ? 'Approved' : 'Pending'}</Badge></div>
                         <h3 className="font-bold text-xl text-slate-900 font-serif mb-1">{batch.subject_name}</h3>
                         <p className="text-sm font-bold text-red-500 border-b pb-4 mb-4">{batch.class_name} | {batch.term} | {batch.session}</p>
-                        <div className="flex justify-between items-center text-sm text-gray-500"><div className="flex items-center gap-2"><User className="w-4 h-4"/> <span className="truncate max-w-[120px]">{batch.uploaded_by}</span></div><span className="font-bold text-slate-700">{batch.records.length} Students</span></div>
+                        <div className="flex justify-between items-end text-sm text-gray-500">
+                            <div className="flex flex-col">
+                                <span className="flex items-center gap-2 font-medium"><User className="w-4 h-4"/> <span className="truncate max-w-[150px]">{batch.uploaded_by}</span></span>
+                                {/* This will now reliably show the date and time! */}
+                                <span className="text-[11px] text-gray-400 mt-1">
+                                    {batch.submitted_at ? `Submitted: ${new Date(batch.submitted_at).toLocaleString('en-NG', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}` : "Submitted: Just now"}
+                                </span>
+                            </div>
+                            <span className="font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded">{batch.records.length} Students</span>
+                        </div>
                     </CardContent>
                 </Card>
             </DialogTrigger>

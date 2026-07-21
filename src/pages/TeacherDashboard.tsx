@@ -33,7 +33,7 @@ const TeacherDashboard = () => {
   const [students, setStudents] = useState<any[]>([]);
   const [scores, setScores] = useState<Record<string, { test: string; mid: string; ass: string; exam: string }>>({});
   const [loading, setLoading] = useState(false);
-  const [clearConfirm, setClearConfirm] = useState(false); // Controls the inline clear confirmation
+  const [clearConfirm, setClearConfirm] = useState(false);
 
   const [myClassStudents, setMyClassStudents] = useState<any[]>([]);
   const [myClassDetails, setMyClassDetails] = useState<any>(null);
@@ -116,7 +116,7 @@ const TeacherDashboard = () => {
   const fetchClassList = async () => {
     if (!selectedClass) return;
     setLoading(true);
-    setClearConfirm(false); // Reset confirmation state on new load
+    setClearConfirm(false); 
     const { data: stud } = await supabase.from('students').select('*').eq('class_id', selectedClass).eq('is_active', true).order('full_name');
     setStudents(stud || []);
     if (selectedSubject && stud) {
@@ -141,7 +141,16 @@ const TeacherDashboard = () => {
     if (!selectedSubject) { toast({variant: "destructive", title: "Select a Subject first"}); return; }
     setLoading(true);
     
-    const updates = students.map(s => {
+    // 1. Wipe the slate clean for this exact sheet to prevent ANY duplicate database crashes!
+    await supabase.from('academic_results')
+        .delete()
+        .eq('class_id', selectedClass)
+        .eq('subject_id', selectedSubject)
+        .eq('session', selectedSession)
+        .eq('term', selectedTerm);
+
+    // 2. Prepare the fresh, perfect batch of students
+    const inserts = students.map(s => {
         const t1 = Number(scores[s.id]?.test || 0); const t2 = Number(scores[s.id]?.mid || 0); const t3 = Number(scores[s.id]?.ass || 0); const ex = Number(scores[s.id]?.exam || 0);
         const totalCA = t1 + t2 + t3; const total = totalCA + ex;
         let grade = 'F'; if (total >= 75) grade = 'A'; else if (total >= 65) grade = 'B'; else if (total >= 50) grade = 'C'; else if (total >= 40) grade = 'D';
@@ -155,7 +164,9 @@ const TeacherDashboard = () => {
         };
     });
     
-    const { error } = await supabase.from('academic_results').upsert(updates, { onConflict: 'student_id, subject_id, session, term' });
+    // 3. Save the fresh students!
+    const { error } = await supabase.from('academic_results').insert(inserts);
+    
     setLoading(false);
     if (!error) toast({ title: "Saved", description: "Academic scores uploaded." });
     else toast({ variant: "destructive", title: "Error", description: error.message });
@@ -165,7 +176,6 @@ const TeacherDashboard = () => {
     if (!selectedSubject || !selectedClass) return;
     setLoading(true);
     
-    // Delete the scores from the database for this specific class, subject, session, and term
     const { error } = await supabase
       .from('academic_results')
       .delete()
@@ -179,7 +189,6 @@ const TeacherDashboard = () => {
 
     if (!error) {
         toast({ title: "Cleared", description: "All scores for this sheet have been wiped." });
-        // Reset the local input fields on the screen
         const emptyScores: any = {};
         students.forEach(s => {
             emptyScores[s.id] = { test: "", mid: "", ass: "", exam: "" };
@@ -293,7 +302,6 @@ const TeacherDashboard = () => {
                                     </Table>
                                 </div>
                                 
-                                {/* UPDATED BUTTON AREA WITH INLINE CONFIRMATION */}
                                 <div className="mt-6 flex flex-col md:flex-row justify-end items-center gap-4">
                                     {clearConfirm ? (
                                         <div className="flex items-center gap-3 animate-in fade-in zoom-in duration-200 bg-red-50 p-2 rounded-lg border border-red-100 w-full md:w-auto justify-between">
