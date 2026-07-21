@@ -137,39 +137,53 @@ const TeacherDashboard = () => {
     setScores(prev => ({ ...prev, [id]: { ...prev[id], [field]: val } }));
   };
 
-  const submitScores = async () => {
+const submitScores = async () => {
     if (!selectedSubject) { toast({variant: "destructive", title: "Select a Subject first"}); return; }
     setLoading(true);
     
-    // 1. Wipe the slate clean for this exact sheet to prevent ANY duplicate database crashes!
-    await supabase.from('academic_results')
-        .delete()
-        .eq('class_id', selectedClass)
-        .eq('subject_id', selectedSubject)
-        .eq('session', selectedSession)
-        .eq('term', selectedTerm);
-
-    // 2. Prepare the fresh, perfect batch of students
-    const inserts = students.map(s => {
-        const t1 = Number(scores[s.id]?.test || 0); const t2 = Number(scores[s.id]?.mid || 0); const t3 = Number(scores[s.id]?.ass || 0); const ex = Number(scores[s.id]?.exam || 0);
-        const totalCA = t1 + t2 + t3; const total = totalCA + ex;
-        let grade = 'F'; if (total >= 75) grade = 'A'; else if (total >= 65) grade = 'B'; else if (total >= 50) grade = 'C'; else if (total >= 40) grade = 'D';
+    const updates = students.map(s => {
+        const t1 = Number(scores[s.id]?.test || 0); 
+        const t2 = Number(scores[s.id]?.mid || 0); 
+        const t3 = Number(scores[s.id]?.ass || 0); 
+        const ex = Number(scores[s.id]?.exam || 0);
+        const totalCA = t1 + t2 + t3; 
+        const total = totalCA + ex;
+        
+        let grade = 'F'; 
+        if (total >= 75) grade = 'A'; 
+        else if (total >= 65) grade = 'B'; 
+        else if (total >= 50) grade = 'C'; 
+        else if (total >= 40) grade = 'D';
         
         return { 
-            student_id: s.id, class_id: selectedClass, subject_id: selectedSubject, 
-            session: selectedSession, term: selectedTerm, 
-            class_test: t1, mid_term_test: t2, assignment: t3, ca_score: totalCA, exam_score: ex, grade: grade, 
+            student_id: s.id, 
+            class_id: selectedClass, 
+            subject_id: selectedSubject, 
+            session: selectedSession, 
+            term: selectedTerm, 
+            class_test: t1, 
+            mid_term_test: t2, 
+            assignment: t3, 
+            ca_score: totalCA, 
+            exam_score: ex, 
+            grade: grade, 
             is_approved: false,
-            uploaded_by_name: user.full_name
+            uploaded_by_name: user.full_name,
+            updated_at: new Date().toISOString() // Actively stamps the exact time for the Head Teacher
         };
     });
     
-    // 3. Save the fresh students!
-    const { error } = await supabase.from('academic_results').insert(inserts);
+ 
+    const { error } = await supabase.from('academic_results').upsert(updates, { 
+        onConflict: 'student_id, subject_id, session, term' 
+    });
     
     setLoading(false);
-    if (!error) toast({ title: "Saved", description: "Academic scores uploaded." });
-    else toast({ variant: "destructive", title: "Error", description: error.message });
+    if (!error) {
+        toast({ title: "Saved", description: "Academic scores uploaded successfully." });
+    } else {
+        toast({ variant: "destructive", title: "Database Error", description: error.message });
+    }
   };
 
   const handleClearScores = async () => {
