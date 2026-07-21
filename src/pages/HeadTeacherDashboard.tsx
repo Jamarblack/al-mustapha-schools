@@ -49,7 +49,7 @@ const HeadTeacherDashboard = () => {
     loadData();
   }, []);
 
-  const loadData = async () => {
+ const loadData = async () => {
     const { data: settings } = await supabase.from('school_settings').select('*').maybeSingle();
     if (settings) setSchoolSettings(settings);
 
@@ -60,7 +60,9 @@ const HeadTeacherDashboard = () => {
         const classIds = cls.map(c => c.id);
         const { data: st } = await supabase.from('students').select('*, class:classes(name)').in('class_id', classIds).order('full_name');
         if (st) { setPupils(st); setPrimaryStats(prev => ({...prev, students: st.length})); }
-        fetchBatches(classIds);
+        
+        // We now pass the active Session and Term directly into the fetch function
+        fetchBatches(classIds, settings?.current_session || "2025/2026", settings?.current_term || "1st Term");
     }
 
     const { data: sf } = await supabase.from('staff').select('*, class_teacher_of(name)').order('role');
@@ -101,16 +103,24 @@ const HeadTeacherDashboard = () => {
     if (!error) { toast({ title: "Staff Created" }); loadData(); setNewStaff({ name: "", email: "", password: "", role: "", section: "primary", phone: "", assignedClass: "unassigned" }); }
   };
 
- const fetchBatches = async (primaryClassIds: string[]) => {
-      const { data } = await supabase.from('academic_results').select('*, subject:subjects(name), class:classes(name), student:students(full_name)').in('class_id', primaryClassIds).limit(10000);
+const fetchBatches = async (primaryClassIds: string[], currentSession: string, currentTerm: string) => {
+      const { data } = await supabase.from('academic_results')
+          .select('*, subject:subjects(name), class:classes(name), student:students(full_name)')
+          .in('class_id', primaryClassIds)
+          .eq('session', currentSession) // Filters out old years
+          .eq('term', currentTerm)       // Filters out old terms
+          .order('created_at', { ascending: false }) // Forces the newest ones to the front
+          .limit(10000);
+          
       if (!data) return;
+      
       const pending: any = {}; const approved: any = {};
       data.forEach((r: any) => {
           const key = `${r.class_id}_${r.subject_id}_${r.session}_${r.term}`;
           const batchObj = { 
               id: key, class_name: r.class?.name, subject_name: r.subject?.name, session: r.session, term: r.term, 
               uploaded_by: r.uploaded_by_name || 'Subject Teacher', 
-              submitted_at: r.updated_at || r.created_at, // <-- Now grabs the new timestamp
+              submitted_at: r.updated_at || r.created_at, 
               records: [] 
           };
           if(!r.is_approved) { if(!pending[key]) pending[key] = {...batchObj}; pending[key].records.push(r); } 
