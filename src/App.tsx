@@ -13,7 +13,8 @@ import PrincipalDashboard from "./pages/PrincipalDashboard";
 import HeadTeacherDashboard from "./pages/HeadTeacherDashboard"; 
 import TeacherDashboard from "./pages/TeacherDashboard";
 import StudentDashboard from "./pages/studentDashboard";
-import AccountingDashboard from "./pages/AccountingDashboard"; 
+import AccountingDashboard from "./pages/AccountingDashboard";
+import VoiceAssistant from "./components/VoiceAssistant";
 
 const queryClient = new QueryClient();
 
@@ -43,6 +44,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
+      <VoiceAssistant />
         <Routes>
           {/* Public Routes */}
           <Route path="/" element={<LandingPage />} /> 
